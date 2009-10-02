@@ -2,34 +2,34 @@ package View.Menu;
 
 import Main.MIDlet;
 import javax.microedition.lcdui.*;
+import View.Game.*;
+import World.StaticWorldBuilder;
+import World.World;
+import World.WorldBuilder;
 
 /**
- * MainMenu
+ * NewGameMenu
  *
  * @author Tim Perry
  */
-public class MainMenu extends Menu implements CommandListener {
+public class NewGameMenu extends Menu implements CommandListener {
 
     private Command select;
 
     private MIDlet midlet;
 
-    public final static int NEW_GAME = 0;
-    public final static int JOIN_GAME = 1;
-    public final static int SETTINGS = 2;
-    public final static int HELP = 3;
-    public final static int EXIT = 4;
+    public final static int START = 0;
+    public final static int OPTIONS = 1;
+    public final static int BACK = 2;
 
-    public MainMenu(MIDlet m)
+    public NewGameMenu(MIDlet midlet)
     {
-      midlet = m;
+      this.midlet = midlet;
 
       // Fill our menu with crunchy wonderful options
-      append("New Game", null);
-      append("Join Game", null);
-      append("Settings", null);
-      append("Help", null);
-      append("Exit", null);
+      append("Start Game", null);
+      append("Options", null);
+      append("Back", null);
 
       // Add controls to select those items
       select = new Command("Select",Command.SCREEN, 1);
@@ -44,24 +44,24 @@ public class MainMenu extends Menu implements CommandListener {
       List l = (List) d;
       if (c == select) {
         switch (l.getSelectedIndex()) {
-          case NEW_GAME:
-            midlet.pushMenu(new NewGameMenu(midlet));
+          case START:
+            // Build a game and give it our settings.
+            GameConfig config = new GameConfig();
+            config.setWorldBuilder(new StaticWorldBuilder());
+            config.setMaxPlayers(1);
+            Game g = new Game(config);
+            midlet.showGame(g);
+            // Put it on the screen.
             break;
-          case JOIN_GAME:
-            midlet.pushMenu(new NewGameMenu(midlet));
+          case OPTIONS:
+            // TODO - GAME OPTIONS
             break;
-          case SETTINGS:
-            midlet.pushMenu(new NewGameMenu(midlet));
-            break;
-          case HELP:
-            midlet.pushMenu(new NewGameMenu(midlet));
-            break;
-          case EXIT:
-            midlet.exit();
+          case BACK:
+            // Go back to the main menu
+            midlet.popMenu();
             break;
           default:
             System.out.println("Imaginary main menu option selected");
-            midlet.exit();
             break;
         }
       }
