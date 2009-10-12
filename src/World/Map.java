@@ -29,15 +29,17 @@ public class Map {
   // Optimise the background tile for the given screen width/height
   public void prepBackgroundForScreen(int width, int height)
   {
-    width = 249;
+    // We optimise by pre-repeating the tiles, generating an image approx twice the size of the screen,
+    // and filling that with the repeated tiles, so that later draws of the background image only require one drawImage, not 100s.
     if (tileWidth < width/2 || tileHeight < height/2)
     {
       int newWidth = width*2;
       int newHeight = height*2;
       // Round newWidth/newHeight up to the next multiple of tileWidth/tileHeight. This ensures that we show a whole number of tiles.
       newWidth = tileWidth * (((newWidth-1) / tileWidth)+1);
-      System.out.println("width*2 = "+width*2+"; tileWidth = "+tileWidth+"; newWidth = "+newWidth);
       newHeight = tileHeight * (((newHeight-1) / tileHeight)+1);
+
+      // Build a new image with the previous tile already repeated, at a size greater than double the screen, so we never need to repeat it again.
       Image newBackground = Image.createImage(newWidth, newHeight);
       drawBackground(newBackground.getGraphics(), 0, 0, newWidth, newHeight);
       setBackgroundTile(newBackground);
@@ -54,10 +56,8 @@ public class Map {
   {
     for (int x2 = x/tileWidth; x2 < x+width; x2 += tileWidth)
     {
-      System.out.println(x2);
       for (int y2 = x/tileHeight; y2 < y+height; y2 += tileHeight)
       {
-        System.out.println(y2);
         target.drawImage(backgroundTile, x2, y2, Graphics.TOP|Graphics.LEFT);
       }
     }
