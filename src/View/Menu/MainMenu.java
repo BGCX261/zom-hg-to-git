@@ -10,10 +10,6 @@ import javax.microedition.lcdui.*;
  */
 public class MainMenu extends Menu implements CommandListener {
 
-    private Command select;
-
-    private MIDlet midlet;
-
     public final static int NEW_GAME = 0;
     public final static int JOIN_GAME = 1;
     public final static int SETTINGS = 2;
@@ -22,20 +18,17 @@ public class MainMenu extends Menu implements CommandListener {
 
     public MainMenu(MIDlet m)
     {
-      midlet = m;
+      super(m, "ZoM", "Select");
 
       // Fill our menu with crunchy wonderful options
       append("New Game", null);
       append("Join Game", null);
       append("Settings", null);
       append("Help", null);
-      append("Exit", null);
+      append("Exit", null);     
 
-      // Add controls to select those items
-      select = new Command("Select",Command.SCREEN, 1);
-      addCommand(select);
-      setSelectCommand(select);
-      setCommandListener(this);
+      // You can't go back from the main menu.
+      removeCommand(back);
     }
 
     public void commandAction(Command c, Displayable d)
@@ -48,10 +41,10 @@ public class MainMenu extends Menu implements CommandListener {
             midlet.pushMenu(new NewGameMenu(midlet));
             break;
           case JOIN_GAME:
-            midlet.pushMenu(new NewGameMenu(midlet));
+            midlet.pushMenu(new JoinGameMenu(midlet));
             break;
           case SETTINGS:
-            midlet.pushMenu(new NewGameMenu(midlet));
+            midlet.pushMenu(new SettingsMenu(midlet));
             break;
           case HELP:
             midlet.pushMenu(new NewGameMenu(midlet));
@@ -65,6 +58,7 @@ public class MainMenu extends Menu implements CommandListener {
             break;
         }
       }
+      else super.commandAction(c, d);
     }
 
   public void giveDisplay(Display d)

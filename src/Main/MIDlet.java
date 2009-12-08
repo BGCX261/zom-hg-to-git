@@ -1,9 +1,12 @@
 package Main;
 
 import View.Game.Game;
+import View.Game.GameConfig;
 import View.Menu.*;
+import View.View;
 import java.util.Stack;
 import javax.microedition.lcdui.Display;
+import javax.microedition.lcdui.Screen;
 import javax.microedition.midlet.MIDletStateChangeException;
 
 /**
@@ -18,7 +21,7 @@ public class MIDlet extends javax.microedition.midlet.MIDlet  {
   private Display display;
 
   protected void startApp() throws MIDletStateChangeException {
-    display = Display.getDisplay(this);    
+    display = Display.getDisplay(this);
     resetMenu();
     showMenu();
   }
@@ -35,19 +38,20 @@ public class MIDlet extends javax.microedition.midlet.MIDlet  {
     menuStack.push(new MainMenu(this));
   }
   
-  public void pushMenu(Menu m)
+  public void pushMenu(Screen m)
   {
     menuStack.push(m);
     showMenu();
   }
 
   public void popMenu() {
-    menuStack.pop();
+    // Don't empty the stack, or we won't have anything to show.
+    if (menuStack.size() > 1) menuStack.pop();
     showMenu();
   }
 
   public void showMenu() {
-    ((Menu)menuStack.peek()).giveDisplay(display);
+    ((View)menuStack.peek()).giveDisplay(display);
   }
 
   public void showGame(Game g) {

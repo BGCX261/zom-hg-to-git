@@ -1,10 +1,11 @@
 package View.Game;
 
+import View.Game.Multiplayer.MultiplayerManager;
 import View.View;
-import World.Map;
 import World.Player;
 import World.Thing;
 import World.World;
+import java.util.Enumeration;
 import java.util.Vector;
 import javax.microedition.lcdui.*;
 import javax.microedition.lcdui.game.GameCanvas;
@@ -17,14 +18,15 @@ import javax.microedition.lcdui.game.GameCanvas;
 public class Game extends GameCanvas implements View, Runnable {
 
   private final World world;
-  private final Player[] players;
-  private final int maxPlayers;
-  private final String gameName;
+  private final GameConfig config;
+  private final Player localPlayer;
+
+  private MultiplayerManager multiplayerManager;
   
   private final Vector controllers;
 
-  private int x;
-  private int y;
+  private int cameraX;
+  private int cameraY;
 
   private boolean running;
   private Graphics g;
@@ -35,46 +37,77 @@ public class Game extends GameCanvas implements View, Runnable {
     // We run the constructor for GameCanvas with key events suppressed - no keyPressed etc calls will be made.
     super(true);
 
-    // Get our setup from the config
+    // Store this config
+    this.config = config;
+
+    // Build our player for this game.
+    System.out.println("Config pId = "+config.getPlayerId());
+    Player.createLocalPlayer(config.getPlayerId());
+    localPlayer = Player.getLocalPlayer();
+    localPlayer.setControlScheme(config.getControlScheme());
+
+    // Let there be light (build us a world from our config - can take time)
     world = config.getWorldBuilder().buildWorld();
-    maxPlayers = config.getMaxPlayers();
-    gameName = config.getGameName();
 
-    // Set up the local player in the world
-    Map map = world.getMap();
-    players = new Player[maxPlayers];
-    players[0] = Player.getLocalPlayer();
-
-    players[0].setX(map.getPlayerStartX());
-    players[0].setY(map.getPlayerStartY());
-
-    world.addThing(players[0]);
+    // Set up multiplayer, if required.
+    if (config.getMaxPlayers() > 1)
+    {
+      multiplayerManager = new MultiplayerManager(this, config);
+    }
 
     controllers = new Vector();
     g = getGraphics();
     running = false;
   }
 
-  public void giveDisplay(Display d)
+  // Most of the time you want to use the accessor functions like getMaxPlayers, but sometimes you want more detail. This is for that.
+  public GameConfig getGameConfig()
   {
-    d.setCurrent(this);    
+    return config;
   }
 
-  public void showNotify()
+  public void giveDisplay(Display d)
   {
+    System.out.println("Game has display");
+    d.setCurrent(this);
+    world.getMap().prepBackgroundForScreen(getWidth(), getHeight());
     new Thread(this).start();
+  }  
+
+  public int getCameraX()
+  {
+    return cameraX;
+  }
+
+  public int getCameraY()
+  {
+    return cameraY;
+  }
+
+  public void updateCameraCoords()
+  {
+    cameraX = Math.min(Math.max(0, localPlayer.getX() - getWidth()/2), world.getMap().getWidth() - this.getWidth());
+    cameraY = Math.min(Math.max(0, localPlayer.getY() - getHeight()/2), world.getMap().getHeight() - this.getHeight());
+  }
+
+  public World getWorld()
+  {
+    return world;
   }
 
   public void run()
   {
     running = true;
+    
+    multiplayerManager.start();
 
+
+    Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+    // Game loop.
     while (running)
     {
-      // TODO - Manage multiplayer stuff - add new clients, drop dead ones etc
-      // TODO - Get all relevant clients in sync
-      // TODO - Look at player input, control the local player
-      players[0].setKeys(getKeyStates());
+      // Look at player input, control the local player
+      localPlayer.setKeys(getKeyStates());
 
       // Update the world (players + AI)
       world.tick();
@@ -86,36 +119,44 @@ public class Game extends GameCanvas implements View, Runnable {
         c.run(world);
       }
 
-      // Camera follows our player
-      x = players[0].getX();
-      y = players[0].getY();
+      updateCameraCoords();
 
       // Draw everything out.
-      draw(x,y);
-      
-      try { Thread.sleep(10); } catch (Exception e) { System.out.println("wait failed"); }
+      draw();
+
+      try { Thread.sleep(1); } catch (Exception e) { System.out.println("Sleep failed"); }
     }
   }
 
-  // Draw the view from the given coordinates to the screen.
-  protected void draw(int x, int y) {
+  // TODO - Checksum everything in the game into one long. Might be challenging...
+  public long checksum()
+  {
+    return 0;
+  }
+
+  // Draw the view from the camera's coordinates to the screen.
+  protected void draw()
+  {
     // Reset the screen
     g.setColor(255,255,255);
     g.fillRect(0, 0, getWidth(), getHeight());
 
-    // Get the world's background and draw it out
-    Image background = world.getMap().getBackground();
-    if (background != null)
-    {
-      g.drawImage(background, 0, 0, Graphics.TOP | Graphics.LEFT);
-    }
+    g.translate(-getCameraX() - g.getTranslateX(), -getCameraY() - g.getTranslateY());
+
+    // Ask the map to draw the relevant background.
+    world.getMap().drawBackground(g, getCameraX(), getCameraY(), getWidth(), getHeight());
 
     // TODO - would it be quicker to do this ourselves?
-    Vector things = world.getThings();
-    for (int ii = 0; ii < things.size(); ii++) {
-      Thing t = (Thing) things.elementAt(ii);
-      t.draw(g);
+    getWorld().lockForRead();
+
+    // Iterate through every element of the world and draw it.
+    Vector things = getWorld().getThings();
+    for (int ii = 0; ii < things.size(); ii++)
+    {
+      ((Thing)things.elementAt(ii)).draw(g);
     }
+
+    getWorld().unlock();
 
     // Draw this to the screen.
     flushGraphics();
