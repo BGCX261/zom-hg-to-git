@@ -2,7 +2,7 @@ package View.Menu;
 
 import Main.MIDlet;
 import View.View;
-import World.Player;
+import World.LocalPlayer;
 import javax.microedition.lcdui.*;
 
 /**
@@ -38,8 +38,8 @@ public class SettingsMenu extends Form implements CommandListener, View {
       controls.append("Absolute", null);
       controls.append("Relative", null);
 
-      if (config.getControlScheme() == Player.ABSOLUTE_CONTROLS) controls.setSelectedIndex(ABSOLUTE_CONTROLS, true);
-      if (config.getControlScheme() == Player.RELATIVE_CONTROLS) controls.setSelectedIndex(RELATIVE_CONTROLS, true);
+      if (config.getControlScheme() == LocalPlayer.ABSOLUTE_CONTROLS) controls.setSelectedIndex(ABSOLUTE_CONTROLS, true);
+      if (config.getControlScheme() == LocalPlayer.RELATIVE_CONTROLS) controls.setSelectedIndex(RELATIVE_CONTROLS, true);
 
       this.append(controls);
 
@@ -59,10 +59,10 @@ public class SettingsMenu extends Form implements CommandListener, View {
       {
         switch (controls.getSelectedIndex()) {
           case ABSOLUTE_CONTROLS:
-            config.setControlScheme(Player.ABSOLUTE_CONTROLS);
+            config.setControlScheme(LocalPlayer.ABSOLUTE_CONTROLS);
             break;
           case RELATIVE_CONTROLS:
-            config.setControlScheme(Player.RELATIVE_CONTROLS);
+            config.setControlScheme(LocalPlayer.RELATIVE_CONTROLS);
             break;
           default:
             break;

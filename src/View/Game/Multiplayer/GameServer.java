@@ -4,6 +4,8 @@ import View.Game.Game;
 import View.Game.GameConfig;
 import World.*;
 import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 import javax.bluetooth.*;
 import javax.microedition.io.*;
@@ -77,10 +79,9 @@ class GameServer {
   {
     active = true;
 
-    Thread mainServingThread = new Thread(new FullGameServer());
+    new Timer().scheduleAtFixedRate(new TickTask(), 0, MultiplayerManager.TICK_LENGTH);
     Thread gameProviderThread = new Thread(new GameProvider());
 
-    mainServingThread.start();
     gameProviderThread.start();
   }
 
@@ -169,49 +170,35 @@ class GameServer {
     
   }
 
-  // One single thread that manages general stuff for the serving of the game - atm just
-  // generating checksums and managing the game ticks.
-  private class FullGameServer implements Runnable
+  // One single Task that manages general stuff for the serving of the game - atm just
+  // generating checksums and managing the game ticks. This is run every TICK_LENGTH ms.
+  private class TickTask extends TimerTask
   {
+
+    public TickTask()
+    {
+      tickCount = 0;
+    }
 
     public void run()
     {
-      Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
-
-      long timeToWait;
-      tickCount = 0;
-      
-      while (active)
+      if (active)
       {
         // Calculate checksum for this tick, and save it.
         checksumValues[nextChecksumIndex] = game.checksum();
         checksumTimes[nextChecksumIndex] = tickCount;
         nextChecksumIndex = (nextChecksumIndex + 1) % CHECKSUM_BUFFER_SIZE;
 
+        tickCount++;
+
         synchronized(tickLock)
         {
           tickLock.notifyAll();
         }
-
-        // Work out how much of time we have left to kill in this tick, and then wait
-        // that much time.
-        timeToWait = (lastTickTime - System.currentTimeMillis()) + MultiplayerManager.TICK_LENGTH;
-        while (timeToWait > 0)
-        {
-          try
-          {
-            synchronized(tickLock)
-            {
-              tickLock.wait(timeToWait);
-            }
-          }
-          catch (InterruptedException e) { }
-          
-          timeToWait = (lastTickTime - System.currentTimeMillis()) + MultiplayerManager.TICK_LENGTH;
-        }
-
-        lastTickTime = System.currentTimeMillis();
-        tickCount++;
+      }
+      else
+      {
+        cancel();
       }
     }
 
@@ -330,6 +317,8 @@ class GameServer {
       conn.writeLong(tickCount);
     }
 
+    // TODO - Think about the locking here again. It should really really be on,
+    // but if it is then we get a massive performance issue. Probs borked in World?
     protected void recieveChanges() throws IOException
     {
       Thing remotePlayer = game.getWorld().getThing(playerId);
@@ -342,14 +331,12 @@ class GameServer {
       {
         try
         {
-          System.out.println("Building remote player");
           remotePlayer = (Player) conn.readAndBuild();
           remotePlayer.setThingId(playerId);
 
           game.getWorld().lockForWrite();
           game.getWorld().addThing(remotePlayer);
           game.getWorld().unlock();
-          System.out.println("Player built, id = "+remotePlayer.getThingId());
         }
         catch (InstantiationException ex)
         {

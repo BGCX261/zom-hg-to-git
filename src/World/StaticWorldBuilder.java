@@ -23,10 +23,10 @@ public class StaticWorldBuilder implements WorldBuilder {
     World w = new World(m);
 
     // Add the local player to the world.
-    Player.getLocalPlayer().setX(m.getPlayerStartX());
-    Player.getLocalPlayer().setY(m.getPlayerStartY());
+    LocalPlayer.getLocalPlayer().setX(m.getPlayerStartX());
+    LocalPlayer.getLocalPlayer().setY(m.getPlayerStartY());
 
-    w.addThing(Player.getLocalPlayer());
+    w.addThing(LocalPlayer.getLocalPlayer());
     
     return w;
   }

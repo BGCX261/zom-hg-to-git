@@ -1,6 +1,6 @@
 package View.Menu;
 
-import World.Player;
+import World.LocalPlayer;
 
 /**
  * Config
@@ -9,7 +9,7 @@ import World.Player;
  */
 public class Config {
 
-  private int controlScheme = Player.ABSOLUTE_CONTROLS;
+  private int controlScheme = LocalPlayer.ABSOLUTE_CONTROLS;
   
   private static Config instance;
 

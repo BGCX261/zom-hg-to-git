@@ -1,7 +1,7 @@
 package View.Game.Multiplayer;
 
 import View.Game.*;
-import World.Player;
+import World.*;
 import World.StaticWorldBuilder;
 import javax.bluetooth.UUID;
 import javax.microedition.io.Connector;
@@ -17,7 +17,7 @@ import javax.microedition.io.StreamConnection;
 public class MultiplayerManager {
 
   // Length of multiplayer ticks, in milliseconds.
-  public final static int TICK_LENGTH = 30;
+  public final static int TICK_LENGTH = 100;
 
   private GameClient client = null;
   private GameServer server = null;
@@ -30,7 +30,7 @@ public class MultiplayerManager {
   static
   {
     GameConfig.registerForSync();
-    Player.registerForSync();
+    RemotePlayer.registerForSync();
     StaticWorldBuilder.registerForSync();
   }
   

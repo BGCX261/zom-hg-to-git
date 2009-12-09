@@ -1,6 +1,7 @@
 package View.Game.Multiplayer;
 
 import View.Game.*;
+import World.LocalPlayer;
 import World.Player;
 import World.Thing;
 import java.io.IOException;
@@ -133,7 +134,7 @@ class GameClient implements Runnable {
 
   public void sendChanges() throws IOException
   {
-    conn.write(Player.getLocalPlayer());
+    conn.write(LocalPlayer.getLocalPlayer());
   }
 
 }

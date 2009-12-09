@@ -2,10 +2,7 @@ package View.Game;
 
 import View.Game.Multiplayer.MultiplayerManager;
 import View.View;
-import World.Player;
-import World.Thing;
-import World.World;
-import java.util.Enumeration;
+import World.*;
 import java.util.Vector;
 import javax.microedition.lcdui.*;
 import javax.microedition.lcdui.game.GameCanvas;
@@ -19,7 +16,7 @@ public class Game extends GameCanvas implements View, Runnable {
 
   private final World world;
   private final GameConfig config;
-  private final Player localPlayer;
+  private final LocalPlayer localPlayer;
 
   private MultiplayerManager multiplayerManager;
   
@@ -27,6 +24,8 @@ public class Game extends GameCanvas implements View, Runnable {
 
   private int cameraX;
   private int cameraY;
+
+  private static final int TICK_LENGTH = 30;
 
   private boolean running;
   private Graphics g;
@@ -41,9 +40,8 @@ public class Game extends GameCanvas implements View, Runnable {
     this.config = config;
 
     // Build our player for this game.
-    System.out.println("Config pId = "+config.getPlayerId());
-    Player.createLocalPlayer(config.getPlayerId());
-    localPlayer = Player.getLocalPlayer();
+    LocalPlayer.createLocalPlayer(config.getPlayerId());
+    localPlayer = LocalPlayer.getLocalPlayer();
     localPlayer.setControlScheme(config.getControlScheme());
 
     // Let there be light (build us a world from our config - can take time)
@@ -101,8 +99,11 @@ public class Game extends GameCanvas implements View, Runnable {
     
     multiplayerManager.start();
 
+    long timeToWait;
+    long lastTickTime = System.currentTimeMillis();
 
     Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+    
     // Game loop.
     while (running)
     {
@@ -124,7 +125,21 @@ public class Game extends GameCanvas implements View, Runnable {
       // Draw everything out.
       draw();
 
-      try { Thread.sleep(1); } catch (Exception e) { System.out.println("Sleep failed"); }
+      // Work out how much of time we have left to kill in this tick, and then wait
+      // that much time.
+      timeToWait = (lastTickTime - System.currentTimeMillis()) + TICK_LENGTH;
+      while (timeToWait > 0)
+      {
+        try
+        {
+          Thread.sleep(timeToWait);
+        }
+        catch (InterruptedException e) { }
+
+        timeToWait = (lastTickTime - System.currentTimeMillis()) + TICK_LENGTH;
+      }
+
+      lastTickTime = System.currentTimeMillis();
     }
   }
 
