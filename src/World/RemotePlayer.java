@@ -35,7 +35,7 @@ public class RemotePlayer extends Player {
     // If these aren't set yet then we don't really have enough data to extrapolate.
     if (previousXUpdate == -1 || previousYUpdate == -1) return;
 
-    // If we move last tick, we're probably still moving (we just continue in whatever direction we're facing).
+    // If we moved last tick, we're probably still moving (we just continue in whatever direction we're facing).
     if (lastXUpdate - previousXUpdate != 0 || lastYUpdate - previousYUpdate != 0)
     {
       lastMoveTime = System.currentTimeMillis();
