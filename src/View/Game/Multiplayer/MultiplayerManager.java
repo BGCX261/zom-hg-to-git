@@ -30,7 +30,7 @@ public class MultiplayerManager {
   static
   {
     GameConfig.registerForSync();
-    RemotePlayer.registerForSync();
+    Player.registerForSync();
     StaticWorldBuilder.registerForSync();
   }
   

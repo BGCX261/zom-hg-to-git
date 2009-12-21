@@ -30,6 +30,8 @@ public class GameConfig implements Syncable {
 
   private Connection conn;
 
+  private static GameConfigFactory factory = new GameConfigFactory();
+
   // Generate a unique id for this game
   public GameConfig()
   {
@@ -131,15 +133,7 @@ public class GameConfig implements Syncable {
   
   public static void registerForSync()
   {
-    syncId = Connection.registerSyncTypes(new byte[]
-      {
-        Connection.INT_TYPE, // Game UUID
-        Connection.STRING_TYPE, // Game name
-        Connection.SYNCABLE_TYPE, // WorldBuilder
-        Connection.BYTE_TYPE // Max Players
-      },
-      GameConfig.class
-    );
+    factory.register();
   }
 
   public Object[] getData()
@@ -159,6 +153,29 @@ public class GameConfig implements Syncable {
     setGameName((String)data[1]);
     setWorldBuilder((WorldBuilder)data[2]);
     setMaxPlayers(((Byte)data[3]).byteValue());
+  }
+
+  private static class GameConfigFactory implements SyncableFactory
+  {
+    public void register()
+    {
+      syncId = Connection.register(new byte[]
+      {
+        Connection.INT_TYPE, // Game UUID
+        Connection.STRING_TYPE, // Game name
+        Connection.SYNCABLE_TYPE, // WorldBuilder
+        Connection.BYTE_TYPE // Max Players
+      },
+      this);
+    }
+
+    public Syncable buildFromData(Object[] data)
+    {
+      GameConfig gc = new GameConfig();
+      gc.loadFromData(data);
+      return gc;
+    }
+
   }
 
 }

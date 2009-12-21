@@ -17,15 +17,6 @@ public class RemotePlayer extends Player {
   
   long lastMoveTime;
 
-  public static void registerForSync()
-  {
-    syncId = Connection.registerSyncTypes(syncTypes, RemotePlayer.class);
-  }
-
-  public int getSyncId()
-  {
-    return syncId;
-  }
 
   public void calculateMoves(World w)
   {

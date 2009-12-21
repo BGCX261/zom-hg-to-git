@@ -1,6 +1,8 @@
 package World;
 
 import View.Game.Multiplayer.Connection;
+import View.Game.Multiplayer.Syncable;
+import View.Game.Multiplayer.SyncableFactory;
 
 /**
  * StaticWorldFactory
@@ -14,6 +16,7 @@ public class StaticWorldBuilder implements WorldBuilder {
 
   // Register us, so that worlds can be sent via Connections.
   private static int syncId;
+  private static StaticWorldBuilderFactory factory = new StaticWorldBuilderFactory();
 
   public void setDifficulty() { }
 
@@ -38,12 +41,7 @@ public class StaticWorldBuilder implements WorldBuilder {
 
   public static void registerForSync()
   {
-    syncId = Connection.registerSyncTypes(
-      new byte[]
-      {
-      },
-      StaticWorldBuilder.class
-    );
+    factory.register();
   }
 
   public Object[] getData()
@@ -55,6 +53,19 @@ public class StaticWorldBuilder implements WorldBuilder {
 
   public void loadFromData(Object[] data)
   {
+  }
+
+  public static class StaticWorldBuilderFactory implements SyncableFactory
+  {
+    public void register()
+    {
+      syncId = Connection.register(new byte[] { }, this);
+    }
+
+    public Syncable buildFromData(Object[] data)
+    {
+      return new StaticWorldBuilder();
+    }
   }
 
 }

@@ -1,6 +1,8 @@
 package World;
 
 import View.Game.Multiplayer.Connection;
+import View.Game.Multiplayer.Syncable;
+import View.Game.Multiplayer.SyncableFactory;
 import java.io.IOException;
 import javax.microedition.lcdui.Graphics;
 import javax.microedition.lcdui.Image;
@@ -15,6 +17,8 @@ public abstract class Player extends Thing {
   protected static final int SPEED = 5;
   protected static final int MOVE_DELAY = 10;
   protected static final int TURNING_DELAY = 100;
+
+  private static PlayerFactory factory = new PlayerFactory();
 
   // An array of images of the player, one for each angle (0 -> 15)
   private static Image[] playerImages = null;
@@ -41,6 +45,11 @@ public abstract class Player extends Thing {
     setThingId(playerId);
   }
 
+  public int getSyncId()
+  {
+    return syncId;
+  }
+
   // Load the images for players.
   public static void loadPlayerImages() throws IOException
   {
@@ -55,6 +64,11 @@ public abstract class Player extends Thing {
   public void draw(Graphics g)
   {
     g.drawImage(playerImages[getAngle()], getX(), getY(), Graphics.HCENTER|Graphics.VCENTER);
+  }
+
+  public static void registerForSync()
+  {
+    factory.register();
   }
 
   protected static byte[] syncTypes = new byte[]
@@ -92,6 +106,21 @@ public abstract class Player extends Thing {
     setY(((Integer)data[2]).intValue());
     setAngle(((Integer)data[3]).intValue());
     setSolid(((Boolean)data[4]).booleanValue());
+  }
+
+  private static class PlayerFactory implements SyncableFactory
+  {
+    public void register()
+    {
+      syncId = Connection.register(syncTypes, this);
+    }
+
+    public Syncable buildFromData(Object[] data)
+    {
+      Player p = new RemotePlayer();
+      p.loadFromData(data);
+      return p;
+    }
   }
 
 }

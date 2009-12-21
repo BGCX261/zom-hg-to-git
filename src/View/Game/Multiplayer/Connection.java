@@ -30,9 +30,9 @@ public class Connection {
   private boolean locked = false;
 
   // Maps syncIds (here array indexes) to byte[]s of type identifiers (INT_TYPE etc)
-  private static Vector syncTypes = new Vector();
-  // Maps the same syncIds to Class object, to allow instatiation via reflection
-  private static Vector syncClasses = new Vector();
+  private static Vector types = new Vector();
+  // Maps the same syncIds to SyncableFactories for building instances;
+  private static Vector factories = new Vector();
 
   // For now we only want Connections to be made for multiplayer. This might change
   // later, but I'll have to think about access modifiers for the streams first (TODO)
@@ -64,31 +64,35 @@ public class Connection {
   // Registers the datatypes that a certain object might want to sync.
   // Byte type identifiers should match one of the static final type ids in Connection
   // Returns an id for all instances of that object to use when they sync.
-  public static int registerSyncTypes(byte[] argumentTypes, Class objectClass)
+  public static int register(byte[] argumentTypes, SyncableFactory factory)
   {
-    syncTypes.addElement(argumentTypes);
-    int syncId = syncTypes.indexOf(argumentTypes);
+    types.addElement(argumentTypes);
+    int syncId = types.indexOf(argumentTypes);
 
-    syncClasses.addElement(objectClass);
+    factories.addElement(factory);
 
     // Assertion - since this is the only place we insert, the indexes should always be the same!
     // Could remove this if we used hashtables instead, but vectors are preferable.
-    if (syncId != syncClasses.indexOf(objectClass)) throw new Error("Inconsistent sync registration data when registering "+objectClass.toString());
+    if (syncId != factories.indexOf(factory)) throw new Error("Inconsistent sync registration data when registering "+factory.toString());
 
     return syncId;
   }
 
-  // Returns an array of bytes, each matching to a datatype, as defined in
-  // Connection
-  public static byte[] getSyncTypes(int syncId)
+  // Returns an array of bytes, each matching to a datatype, as defined in Connection
+  public static byte[] getTypes(int syncId)
   {
-    return (byte[]) syncTypes.elementAt(syncId);
+    return (byte[]) types.elementAt(syncId);
   }
 
-  // Returns a class object, for the given type id.
-  public static Class getSyncClass(int syncId)
+  // Returns a syncableFactory for the given sync id.
+  public static Class getFactory(int syncId)
   {
-    return (Class) syncClasses.elementAt(syncId);
+    return (Class) factories.elementAt(syncId);
+  }
+
+  public Syncable buildInstance(int syncId, Object[] data)
+  {
+    return ((SyncableFactory) factories.elementAt(syncId)).buildFromData(data);
   }
 
   public void write(Syncable s) throws IOException
@@ -100,7 +104,7 @@ public class Connection {
   // type (according to syncTypes).
   public void write(int syncId, Object[] data) throws IOException
   {
-    byte[] types = getSyncTypes(syncId);
+    byte[] datatypes = getTypes(syncId);
 
     /* FOR DEBUGGING: *
     System.out.println("Writing object - type "+syncId);
@@ -117,9 +121,9 @@ public class Connection {
     // Steps through all the data and unpacks it according to the types array.
     // Worth noting - all arrays have lengths sent with them, could be worth reconsidering this? (TODO)
     // Also, all 2d arrays are not considered jagged.
-    for (int ii = 0; ii < types.length; ii++)
+    for (int ii = 0; ii < datatypes.length; ii++)
     {
-      switch (types[ii]) {
+      switch (datatypes[ii]) {
         case INT_TYPE:
           writeInt(((Integer)data[ii]).intValue());
           break;
@@ -164,27 +168,13 @@ public class Connection {
     return read(syncId);
   }
 
-  // Load a full object's data, and then build one of those objects with reflection.
-  // NB - Objects MUST have an empty constructor, or an instantiation exception will be thrown!
+  // Load a full object's data, and then build one of those objects with the relevant syncable factory
   public Syncable readAndBuild() throws IOException, InstantiationException
   {
     int syncId = readInt();
     Object[] data = read(syncId);
     
-    Syncable object;
-    try
-    {
-      object = (Syncable) getSyncClass(syncId).newInstance();
-    }
-    catch (Exception ex)
-    {
-      System.out.println("Failed to instantiate object with syncId: "+syncId);
-      object = null;
-    }
-
-    object.loadFromData(data);
-
-    return object;
+    return buildInstance(syncId, data);
   }
 
   // Loads a full object's data, and then updates the given object to use that data.
@@ -201,12 +191,12 @@ public class Connection {
   // by the next integer in the stream. All data is packed into object wrappers (Integer etc.)
   private Object[] read(int syncId) throws IOException
   {
-    byte[] types = getSyncTypes(syncId);
-    Object[] data = new Object[types.length];
+    byte[] datatypes = getTypes(syncId);
+    Object[] data = new Object[datatypes.length];
 
-    for (int ii = 0; ii < types.length; ii++)
+    for (int ii = 0; ii < datatypes.length; ii++)
     {
-      switch (types[ii])
+      switch (datatypes[ii])
       {
         case INT_TYPE:
           data[ii] = new Integer(readInt());
