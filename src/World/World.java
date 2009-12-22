@@ -16,7 +16,6 @@ public class World {
   private final Map map;
   private final Thing[] indexedThings;
   private final Vector thingVector;
-  private final Vector thingsToAdd;
   private int nextId = 10;
   private static final int MAX_THINGS = 100;
 
@@ -29,7 +28,6 @@ public class World {
   {
     map = m;
     thingVector = new Vector();
-    thingsToAdd = new Vector();
     indexedThings = new Thing[MAX_THINGS];
   }
 
@@ -40,32 +38,13 @@ public class World {
 
   public void addThing(Thing thing)
   {
-    synchronized (thingsToAdd)
+    if (thing.getThingId() == -1)
     {
-      thingsToAdd.addElement(thing);
-      addThingsNow();
+      thing.setThingId(nextId);
+      nextId++;
     }
-  }
-
-  public void addThingsNow()
-  {
-    synchronized (thingsToAdd)
-    {
-      for (int ii = 0; ii < thingsToAdd.size(); ii++)
-      {
-        Thing thing = (Thing) thingsToAdd.elementAt(ii);
-
-        if (thing.getThingId() == -1)
-        {
-          thing.setThingId(nextId);
-          nextId++;
-        }
-        thingVector.addElement(thing);
-        indexedThings[thing.getThingId()] = thing;
-      }
-      
-      thingsToAdd.removeAllElements();
-    }
+    thingVector.addElement(thing);
+    indexedThings[thing.getThingId()] = thing;
   }
 
   public void removeThing(int thingId)
@@ -102,27 +81,28 @@ public class World {
   public void tick()
   {
     Thing t;
+    Thing[] thingArray;
 
-    lockForWrite();
-    addThingsNow();
-    unlock();
+    synchronized (thingVector)
+    {
+      thingArray = new Thing[thingVector.size()];
+      thingVector.copyInto(thingArray);
+    }
 
     lockForRead();
     // Go through every thing and have it work out what it wants to do.
-    for (int ii = 0; ii < thingVector.size(); ii++)
+    for (int ii = 0; ii < thingArray.length; ii++)
     {
-      t = (Thing) thingVector.elementAt(ii);
-      t.calculateMoves(this);
+      thingArray[ii].calculateMoves(this);
     }
     unlock();
 
     // Before we actually make the moves we need to make sure nobody else is trying
     // to read the world for syncing with other phones, or similar, so we get a lock.
     lockForWrite();
-    for (int ii = 0; ii < thingVector.size(); ii++)
+    for (int ii = 0; ii < thingArray.length; ii++)
     {
-      t = (Thing) thingVector.elementAt(ii);
-      t.makeMoves(this);
+      thingArray[ii].makeMoves(this);
     }
     unlock();
   }
