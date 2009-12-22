@@ -7,21 +7,27 @@ package com.zom.util;
  */
 public class LinkedListBasedQueue implements Queue
 {
+  // This is the terminator of our linked list. Useful to have as an object
+  // so we can lock on it.
+  //private final LinkedList nullList = new LinkedList(null, null);
+
   private LinkedList end = null;
   private LinkedList front = null;
 
   public void enqueue(Object o)
   {
-    end = new LinkedList(end, o);
+    LinkedList temp = new LinkedList(o);
 
     if (front == null)
     {
-      front = end;
+      front = temp;
     }
     else
     {
-      end.previous.next = end;
+      end.next = temp;
     }
+
+    end = temp;
   }
 
   public Object dequeue()
@@ -30,9 +36,6 @@ public class LinkedListBasedQueue implements Queue
 
     LinkedList temp = front;
     front = temp.next;
-
-    if (front == null) end = null;
-    else front.previous = null;
 
     return temp.o;
   }
@@ -44,13 +47,11 @@ public class LinkedListBasedQueue implements Queue
 
   private class LinkedList
   {
-    public LinkedList previous;
     public LinkedList next;
     public final Object o;
 
-    public LinkedList(LinkedList l, Object o)
+    public LinkedList(Object o)
     {
-      this.previous = l;
       this.o = o;
     }
   }

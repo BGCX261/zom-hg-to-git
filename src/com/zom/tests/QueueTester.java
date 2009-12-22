@@ -17,10 +17,10 @@ public class QueueTester extends TestCase
   public static final int TEST_LENGTH = 40000;
 
   // Within each queue's test, fill and empty the queue this many times.
-  public static final int TEST_COUNT = 1;
+  public static final int TEST_COUNT = 3;
 
   // The entire test is run this many times, for each queue.
-  public static final int TEST_RUNS = 3;
+  public static final int TEST_RUNS = 20;
 
   public QueueTester()
   {
@@ -29,7 +29,8 @@ public class QueueTester extends TestCase
 
   public void test(int arg0) throws Throwable
   {
-    System.out.print("Results for "+arg0+": ");
+    long[] times = new long[TEST_RUNS];
+
     for (int ii = 0; ii < TEST_RUNS; ii++)
     {
       long start = System.currentTimeMillis();
@@ -50,11 +51,20 @@ public class QueueTester extends TestCase
 
       long end = System.currentTimeMillis();
 
-      System.out.print((end - start) + "ms"+" ");
+      times[ii] = end - start;
     }
 
-    Thread.sleep(5000); // Makes it easier to spot things on the memory monitor
-    System.out.print("\n");
+    //Thread.sleep(5000); // Makes it easier to spot things on the memory monitor
+    
+    System.out.print("Times for " + arg0 + ": ");
+    
+    long total = 0;
+    for (int ii = 0; ii < times.length; ii++)
+    {
+      total += times[ii];
+      System.out.print(times[ii]+"ms ");
+    }
+    System.out.println("- Average: "+(total/times.length));
   }
 
   public void testQueue(Queue q, int length, int tests)
