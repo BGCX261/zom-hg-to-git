@@ -289,10 +289,10 @@ class GameServer {
     // details - this would override where they thought they were if, for example, they were wrong.
     protected void sync(boolean updateRemotePlayer) throws IOException
     {
-      game.getWorld().lockForRead();
-
       Thing t;
       Vector things = game.getWorld().getThings();
+
+      game.getWorld().lockForRead();
 
       // If we don't want to forcibly update the remote player, and we do know about them
       // already then we're updating
@@ -302,7 +302,7 @@ class GameServer {
 
       conn.writeInt(thingSize);
 
-      for (int ii = 0; ii < things.size(); ii++)
+      for (int ii = 0; ii < game.getWorld().getThingCount(); ii++)
       {
         // If we don't want to forcibly update the remote player, don't give them details about them.
         if (!updateRemotePlayer && ii == playerId) continue;
@@ -317,12 +317,10 @@ class GameServer {
       conn.writeLong(tickCount);
     }
 
-    // TODO - Think about the locking here again. It should really really be on,
-    // but if it is then we get a massive performance issue. Probs borked in World?
     protected void recieveChanges() throws IOException
-    {
+    {      
       Thing remotePlayer = game.getWorld().getThing(playerId);
-      
+
       if (remotePlayer != null)
       {
         conn.readAndUpdate(remotePlayer);

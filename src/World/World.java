@@ -1,6 +1,5 @@
 package World;
 
-import java.util.Enumeration;
 import java.util.Vector;
 
 /**
@@ -15,8 +14,9 @@ import java.util.Vector;
 public class World {
 
   private final Map map;
-  private Thing[] indexedThings;
-  private Vector thingVector;
+  private final Thing[] indexedThings;
+  private final Vector thingVector;
+  private final Vector thingsToAdd;
   private int nextId = 10;
   private static final int MAX_THINGS = 100;
 
@@ -29,6 +29,7 @@ public class World {
   {
     map = m;
     thingVector = new Vector();
+    thingsToAdd = new Vector();
     indexedThings = new Thing[MAX_THINGS];
   }
 
@@ -39,13 +40,32 @@ public class World {
 
   public void addThing(Thing thing)
   {
-    if (thing.getThingId() == -1)
+    synchronized (thingsToAdd)
     {
-      thing.setThingId(nextId);
-      nextId++;
+      thingsToAdd.addElement(thing);
+      addThingsNow();
     }
-    thingVector.addElement(thing);
-    indexedThings[thing.getThingId()] = thing;
+  }
+
+  public void addThingsNow()
+  {
+    synchronized (thingsToAdd)
+    {
+      for (int ii = 0; ii < thingsToAdd.size(); ii++)
+      {
+        Thing thing = (Thing) thingsToAdd.elementAt(ii);
+
+        if (thing.getThingId() == -1)
+        {
+          thing.setThingId(nextId);
+          nextId++;
+        }
+        thingVector.addElement(thing);
+        indexedThings[thing.getThingId()] = thing;
+      }
+      
+      thingsToAdd.removeAllElements();
+    }
   }
 
   public void removeThing(int thingId)
@@ -82,6 +102,10 @@ public class World {
   public void tick()
   {
     Thing t;
+
+    lockForWrite();
+    addThingsNow();
+    unlock();
 
     lockForRead();
     // Go through every thing and have it work out what it wants to do.

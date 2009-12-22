@@ -101,11 +101,13 @@ class GameClient implements Runnable {
   public void sync() throws IOException
   {
     try {
+      // REPORT - say why the lockForWrite can't go here!
       int thingCount = conn.readInt();
 
       int thingId;
       Thing localThing;
 
+      game.getWorld().lockForWrite();
       for (int ii = 0; ii < thingCount; ii++)
       {
         thingId = conn.readInt();
@@ -121,9 +123,12 @@ class GameClient implements Runnable {
         {
           localThing = (Thing) conn.readAndBuild();
           localThing.setThingId(thingId);
+          System.out.println("Adding");
           game.getWorld().addThing(localThing);
+          System.out.println("added");
         }
       }
+      game.getWorld().unlock();
 
       // Get our ticks in sync.
       tickCount = conn.readLong();
@@ -134,7 +139,9 @@ class GameClient implements Runnable {
 
   public void sendChanges() throws IOException
   {
+    game.getWorld().lockForRead();
     conn.write(LocalPlayer.getLocalPlayer());
+    game.getWorld().unlock();
   }
 
 }

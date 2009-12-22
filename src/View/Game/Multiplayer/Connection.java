@@ -11,6 +11,8 @@ import javax.microedition.lcdui.Image;
  */
 public class Connection {
 
+  public static final boolean DEBUG = true;
+
   // Data type identifiers - To add anything add it here, in read(syncId) and write(syncId, data)
   public static final byte INT_TYPE = 0;
   public static final byte BYTE_TYPE = 1;
@@ -106,14 +108,15 @@ public class Connection {
   {
     byte[] datatypes = getTypes(syncId);
 
-    /* FOR DEBUGGING: *
-    System.out.println("Writing object - type "+syncId);
-    for (int ii = 0; ii < data.length; ii++)
+    if (DEBUG)
     {
-      System.out.println(ii+" = "+data[ii].toString());
+      System.out.println("Writing object - type "+syncId);
+      for (int ii = 0; ii < data.length; ii++)
+      {
+        System.out.println(ii+" = "+data[ii].toString());
+      }
+      System.out.println("End of object");
     }
-    System.out.println("End of object");
-    * */
 
     // Tell the reciever what datatype we're sending
     writeInt(syncId);
@@ -244,14 +247,15 @@ public class Connection {
       }
     }
 
-    /* FOR DEBUGGING: *
-    System.out.println("Read object - type "+syncId);
-    for (int ii = 0; ii < data.length; ii++)
+    if (DEBUG)
     {
-      System.out.println(ii+" = "+data[ii].toString());
+      System.out.println("Read object - type "+syncId);
+      for (int ii = 0; ii < data.length; ii++)
+      {
+        System.out.println(ii+" = "+data[ii].toString());
+      }
+      System.out.println("End of object");
     }
-    System.out.println("End of object");
-    * */
 
     return data;
   }
@@ -260,6 +264,7 @@ public class Connection {
   // The only notable part is that all strings are sent as UTF8.
   public void writeInt(int i) throws IOException
   {
+    if (DEBUG) System.out.println("Writing int - "+i);
     out.writeInt(i);
   }
 
@@ -270,6 +275,7 @@ public class Connection {
 
   public void writeByte(byte b) throws IOException
   {
+    if (DEBUG) System.out.println("Writing byte - "+b);
     out.writeByte(b);
   }
 
@@ -280,6 +286,7 @@ public class Connection {
 
   public void writeLong(long l) throws IOException
   {
+    if (DEBUG) System.out.println("Writing long - "+l);
     out.writeLong(l);
   }
 
@@ -290,6 +297,7 @@ public class Connection {
 
   public void writeDouble(double d) throws IOException
   {
+    if (DEBUG) System.out.println("Writing double - "+d);
     out.writeDouble(d);
   }
 
@@ -300,6 +308,7 @@ public class Connection {
 
   public void writeFloat(float f) throws IOException
   {
+    if (DEBUG) System.out.println("Writing float - "+f);
     out.writeFloat(f);
   }
 
@@ -310,6 +319,7 @@ public class Connection {
 
   public void writeString(String s) throws IOException
   {
+    if (DEBUG) System.out.println("Writing string - "+s);
     out.writeUTF(s);
   }
 
@@ -320,6 +330,7 @@ public class Connection {
 
   public void writeImage(Image i) throws IOException
   {
+    if (DEBUG) System.out.println("Writing image - "+i.toString());
     out.writeImage(i);
   }
 
@@ -330,6 +341,7 @@ public class Connection {
 
   public void writeBoolArray(boolean[] bs, boolean writeLength) throws IOException
   {
+    if (DEBUG) System.out.println("Writing boolean array - "+bs.toString());
     out.writeBoolArray(bs, writeLength);
   }
 
@@ -343,9 +355,10 @@ public class Connection {
     return in.readBoolArray(l);
   }
 
-  public void write2dBoolArray(boolean[][] bs, boolean isJagged) throws IOException
+  public void write2dBoolArray(boolean[][] bss, boolean isJagged) throws IOException
   {
-    out.write2dBoolArray(bs, isJagged);
+    if (DEBUG) System.out.println("Writing 2d boolean array - "+bss.toString());
+    out.write2dBoolArray(bss, isJagged);
   }
 
   public boolean[][] read2dBoolArray(boolean isJagged) throws IOException
@@ -355,6 +368,7 @@ public class Connection {
 
   public void writeBool(boolean b) throws IOException
   {
+    if (DEBUG) System.out.println("Writing boolean - "+b);
     out.writeBoolean(b);
   }
 
@@ -370,6 +384,7 @@ public class Connection {
 
   public void close()
   {
+    System.out.println("Explicitly closing connection");
     try
     {
       in.close();
