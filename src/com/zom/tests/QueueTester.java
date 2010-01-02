@@ -14,10 +14,10 @@ import jmunit.framework.cldc10.TestCase;
 public class QueueTester extends TestCase
 {
   // Within each fill/empty of the queue, fill the queue with this many elements.
-  public static final int TEST_LENGTH = 40000;
+  public static final int TEST_LENGTH = 3;
 
   // Within each queue's test, fill and empty the queue this many times.
-  public static final int TEST_COUNT = 3;
+  public static final int TEST_COUNT = 3000;
 
   // The entire test is run this many times, for each queue.
   public static final int TEST_RUNS = 20;
@@ -27,7 +27,7 @@ public class QueueTester extends TestCase
     super(3, "QueueTester");
   }
 
-  public void test(int arg0) throws Throwable
+  public void test(int arg0)
   {
     long[] times = new long[TEST_RUNS];
 
@@ -38,13 +38,13 @@ public class QueueTester extends TestCase
       switch (arg0)
       {
         case 0:
-          testQueue(new StackBasedQueue(), TEST_LENGTH, TEST_COUNT);
+          testQueueConcurrently(new StackBasedQueue(), TEST_LENGTH, TEST_COUNT);
           break;
         case 1:
-          testQueue(new CircularBufferBasedQueue(), TEST_LENGTH, TEST_COUNT);
+          testQueueConcurrently(new CircularBufferBasedQueue(), TEST_LENGTH, TEST_COUNT);
           break;
         case 2:
-          testQueue(new LinkedListBasedQueue(), TEST_LENGTH, TEST_COUNT);
+          testQueueConcurrently(new LinkedListBasedQueue(), TEST_LENGTH, TEST_COUNT);
           break;
       }
       System.gc();
@@ -53,9 +53,13 @@ public class QueueTester extends TestCase
 
       times[ii] = end - start;
     }
-
-    //Thread.sleep(5000); // Makes it easier to spot things on the memory monitor
     
+    try
+    {
+      Thread.sleep(2000); // Makes it easier to spot things on the memory monitor
+    }
+    catch (InterruptedException ex) { }
+
     System.out.print("Times for " + arg0 + ": ");
     
     long total = 0;
@@ -71,30 +75,101 @@ public class QueueTester extends TestCase
   {
     for (int ii = 0; ii < tests; ii++)
     {
-      fillQueue(q, length);
-      emptyQueue(q, length);
+      new Filler(q, length).run();
+      new Emptier(q, length).run();
     }
   }
 
-  public void fillQueue(Queue q, int length)
+  public void testQueueConcurrently(final Queue q, final int length, int tests)
   {
-    for (int ii = 0; ii < length; ii++)
+    Filler filler = new Filler(q, length);
+    Emptier emptier = new Emptier(q, length);
+
+    for (int ii = 0; ii < tests; ii++)
     {
-      q.enqueue(new Integer(ii));
+      new Thread(filler).start();      
+      new Thread(emptier).start();
+      
+      while (!filler.done || !emptier.done)
+      {
+        try
+        {
+          Thread.sleep(10);
+        }
+        catch (InterruptedException ex) { }
+      }
     }
   }
 
-  public void emptyQueue(Queue q, int length)
+  public static class Filler implements Runnable
   {
-    Integer j = new Integer(-1);
-    Integer i;
-    for (int ii = 0; ii < length; ii++)
+    public boolean done = false;
+    
+    public Queue q;
+    public int length;
+
+    public Filler(Queue q, int length)
     {
-      i = (Integer) q.dequeue();
+      this.q = q;
+      this.length = length;
+    }
 
-      assertEquals(i.intValue(), j.intValue() + 1);
-
-      j = i;
+    public synchronized void run()
+    {
+      done = false;
+      for (int ii = 0; ii < length; ii++)
+      {
+        q.enqueue(new Integer(ii));
+      }
+      done = true;
     }
   }
+
+  public static class Emptier implements Runnable
+  {
+    public boolean done = false;
+
+    public Queue q;
+    public int length;
+
+    public Emptier(Queue q, int length)
+    {
+      this.q = q;
+      this.length = length;
+    }
+
+    public synchronized void run()
+    {
+      try
+      {
+        done = false;
+
+        Integer j = new Integer(-1);
+        Integer i;
+        for (int ii = 0; ii < length; ii++)
+        {
+          while (q.empty())
+          {
+            try
+            {
+              Thread.sleep(10);
+            }
+            catch (Exception ex) { }
+          }
+
+          i = (Integer) q.dequeue();
+
+          if (i.intValue() != j.intValue()+1) throw new Error("i ("+i.intValue()+") != j+1 ("+(j.intValue()+1)+")");
+
+          j = i;
+        }
+        done = true;
+      }
+      catch (Exception e)
+      {
+        e.printStackTrace();
+      }
+    }
+  }
+
 }

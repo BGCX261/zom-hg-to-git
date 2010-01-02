@@ -9,50 +9,67 @@ public class LinkedListBasedQueue implements Queue
 {
   // This is the terminator of our linked list. Useful to have as an object
   // so we can lock on it.
-  //private final LinkedList nullList = new LinkedList(null, null);
+  private static final LinkedList nullList = new LinkedList(null);
 
-  private LinkedList end = null;
-  private LinkedList front = null;
+  // New elements are added to the end of the queue.
+  private LinkedList end = nullList;
+  // Elements are taken from the front of the queue.
+  private LinkedList front = nullList;
 
   public void enqueue(Object o)
   {
     LinkedList temp = new LinkedList(o);
 
-    if (front == null)
+    synchronized(end)
     {
-      front = temp;
-    }
-    else
-    {
-      end.next = temp;
-    }
+      if (front == nullList)
+      {
+        synchronized(front)
+        {
+          if (front == nullList)
+          {
+            front = temp;
+          }
+        }
+      }
+      else
+      {
+        end.next = temp;
+      }
 
-    end = temp;
+      end = temp;
+    }
   }
 
   public Object dequeue()
   {
-    if (end == null) return null;
+    if (empty()) return null;
 
-    LinkedList temp = front;
-    front = temp.next;
+    LinkedList temp;
+
+    synchronized(front)
+    {
+      temp = front;
+      front = temp.next;
+    }
 
     return temp.o;
   }
 
   public boolean empty()
   {
-    return end == null;
+    return front == nullList;
   }
 
-  private class LinkedList
+  private static class LinkedList
   {
-    public LinkedList next;
+    public LinkedList next = nullList;
     public final Object o;
 
     public LinkedList(Object o)
     {
       this.o = o;
     }
+
   }
 }

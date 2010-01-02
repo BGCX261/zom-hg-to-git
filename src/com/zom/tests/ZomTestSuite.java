@@ -13,6 +13,7 @@ public class ZomTestSuite extends TestSuite
   {
     super("All tests");
     add(new QueueTester());
+    //add(new LockingTest());
   }
 
 }

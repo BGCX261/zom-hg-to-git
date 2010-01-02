@@ -14,40 +14,57 @@ public class StackBasedQueue implements Queue
   private Stack currentFront = a;
   private Stack currentBack = b;
 
+  private final Object frontLock = new Object();
+  private final Object backLock = new Object();
+
   /**
    * Returns null if queue is empty.
    * @return
    */
   public Object dequeue()
   {
-    if (currentFront.empty())
+    synchronized (frontLock)
     {
-      if (currentBack.empty()) return null;
-      else swap();
-    }
+      if (currentFront.empty())
+      {
+        synchronized (backLock)
+        {
+          if (currentBack.empty()) return null;
+          else swap();
+        }
+      }
 
-    return currentFront.pop();
+      return currentFront.pop();
+    }
   }
 
   public void enqueue(Object o)
   {
-    currentBack.push(o);
+    synchronized (backLock)
+    {
+      currentBack.push(o);
+    }
   }
 
-  protected void swap()
+  protected synchronized void swap()
   {
-    Stack temp = currentFront;
-    currentFront = currentBack;
-    currentBack = temp;
+    synchronized (backLock)
+    {
+      synchronized (frontLock)
+      {
+        Stack temp = currentFront;
+        currentFront = currentBack;
+        currentBack = temp;
 
-    reverse(currentFront);
+        reverse(currentFront);
+      }
+    }
   }
 
   private static void reverse(Stack s)
   {
     Object temp;
 
-    // < might need to be <= because of rounding. (tests should show that though)
     for (int ii = 0; ii < s.size() / 2; ii++)
     {
       temp = s.elementAt(ii);

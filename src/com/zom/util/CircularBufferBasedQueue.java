@@ -9,34 +9,40 @@ public class CircularBufferBasedQueue implements Queue
 {
   private Object[] a = new Object[10];
   // The index of the next empty space.
-  private int end = 0;
+  private int back = 0;
   // The index of the first element
   private int front = 0;
   // The number of elements in the array.
   private int size = 0;
+  private final Object frontLock = new Object();
+  private final Object backLock = new Object();
 
   public void enqueue(Object o)
   {
+    synchronized(frontLock)
+    {
+      if (size == a.length) expand();
 
-    if (size == a.length) expand();
-
-    a[end] = o;
-    end = (end + 1) % a.length;
-    size++;
+      a[back] = o;
+      back = (back + 1) % a.length;
+      size++;
+    }
   }
 
   public Object dequeue()
   {
+    synchronized(backLock)
+    {
+      if (empty()) return null;
 
-    if (empty()) return null;
+      Object o = a[front];
+      front = (front + 1) % a.length;
+      size--;
 
-    Object o = a[front];
-    front = (front + 1) % a.length;
-    size--;
+      if (size < a.length / 4) shrink();
 
-    if (size < a.length / 4) shrink();
-
-    return o;
+      return o;
+    }
   }
 
   public boolean empty()
@@ -46,43 +52,55 @@ public class CircularBufferBasedQueue implements Queue
 
   private void expand()
   {
-    Object[] b = new Object[a.length * 2];
-
-    if (size != a.length)
+    synchronized(frontLock)
     {
-      return;
-    }
-    else
-    {
-      System.arraycopy(a, front, b, 0, a.length - front);
-      System.arraycopy(a, 0, b, a.length - front, front);
-    }
+      synchronized(backLock)
+      {
+        Object[] b = new Object[a.length * 2];
 
-    front = 0;
-    end = size;
-    a = b;
+        if (size != a.length)
+        {
+          return;
+        }
+        else
+        {
+          System.arraycopy(a, front, b, 0, a.length - front);
+          System.arraycopy(a, 0, b, a.length - front, front);
+        }
+
+        front = 0;
+        back = size;
+        a = b;
+      }
+    }
   }
 
   private void shrink()
   {
-    if (size > a.length / 2) return;
-
-    Object[] b = new Object[a.length / 2];
-
-    // Contiguous block
-    if (front <= end)
+    synchronized(frontLock)
     {
-      System.arraycopy(a, front, b, 0, size);
-    }
-    // Non-contiguous
-    else
-    {
-      System.arraycopy(a, front, b, 0, a.length - front);
-      System.arraycopy(a, 0, b, a.length - front, end);
-    }
+      synchronized(backLock)
+      {
+        if (size > a.length / 2) return;
 
-    a = b;
-    front = 0;
-    end = size;
+        Object[] b = new Object[a.length / 2];
+
+        // Contiguous block
+        if (front <= back)
+        {
+          System.arraycopy(a, front, b, 0, size);
+        }
+        // Non-contiguous
+        else
+        {
+          System.arraycopy(a, front, b, 0, a.length - front);
+          System.arraycopy(a, 0, b, a.length - front, back);
+        }
+
+        a = b;
+        front = 0;
+        back = size;
+      }
+    }
   }
 }
