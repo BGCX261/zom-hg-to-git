@@ -29,37 +29,27 @@ public abstract class Thing implements Syncable {
   // A unique id for a thing within a world. This id is chosen by the world, when the thing is added to the world.
   private int thingId = -1;
 
-  // We can't set this to final, because j2me reflection requires us to have an argumentless constructor to make
-  // our reflection in Connection work properly. Instead, we error if nobody has set it by the time it gets used (see getRadius).
-  private int radius = -1;
+  private final int radius;
 
-  // Thing's are only considered for collision if they are solid. If not then other Things can (and will) go straight though them.
+  // Things are only considered for collision if they are solid. If not then other Things can (and will) go straight though them.
   protected boolean solid = true;
 
-  // Any uses of this function must immediately be followed by a call to loadData. This should only be used for generating
-  // empty Things, ready to be packed with data from (for example) the network.
-  public Thing() { }
-
-  public Thing (int radius, int thingId)
+  public Thing(int radius)
   {
-    setRadius(radius);
+    this.radius = radius;
+  }
+
+  public Thing(int radius, int thingId)
+  {
+    this(radius);
     setThingId(thingId);
   }
 
-  // Set the radius, if it hasn't been set already.
-  public void setRadius(int radius)
-  {
-    if (this.radius < 0 && radius > 0) this.radius = radius;
-  }
-
-  // Returns the radius, or 0 if not yet set (hopefully should never happen).
   public int getRadius()
   {
-    if (radius == -1) throw new Error("Attempting to use Thing that is not yet initialised!");
-    return (radius > 0 ? radius : 0);
+    return radius;
   }
 
-  // Sets the thing id, if it hasn't been set already.
   public void setThingId(int thingId)
   {
     this.thingId = thingId;
@@ -195,7 +185,7 @@ public abstract class Thing implements Syncable {
     }
   }
 
-  // FIx a collision that exists between you and your planned position. Most Things should reset to their current position, some things will do other things
+  // Fix a collision that exists between you and your planned position. Most Things should reset to their current position, some things will do other things
   // (e.g. bullets cease to exist on contact with walls, or could bounce?)
   public void fixPlannedCollide(Map map) { }
 

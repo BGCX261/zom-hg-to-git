@@ -18,6 +18,8 @@ public abstract class Player extends Thing {
   protected static final int MOVE_DELAY = 10;
   protected static final int TURNING_DELAY = 100;
 
+  private boolean firePlanned = false;
+
   private static PlayerFactory factory = new PlayerFactory();
 
   // An array of images of the player, one for each angle (0 -> 15)
@@ -25,9 +27,11 @@ public abstract class Player extends Thing {
 
   // Stores an id used to identify us over connection, if/when we sync across the network
   protected static int syncId = -1;
+
+  protected Gun gun = new Pistol();
   
   public Player() {
-    super(7, -1);
+    super(7);
     try {
       if (playerImages == null)
       {
@@ -48,6 +52,22 @@ public abstract class Player extends Thing {
   public int getSyncId()
   {
     return syncId;
+  }
+
+  public void planFire()
+  {
+    firePlanned = true;
+  }
+
+  public void makeMoves(World w)
+  {
+    if (firePlanned)
+    {
+      gun.fire(w, getX(), getY(), getAngle());
+      firePlanned = false;
+    }
+    
+    super.makeMoves(w);
   }
 
   // Load the images for players.
@@ -71,45 +91,41 @@ public abstract class Player extends Thing {
     factory.register();
   }
 
-  protected static byte[] syncTypes = new byte[]
-  {
-    Connection.INT_TYPE, // Radius
-    Connection.INT_TYPE, // X
-    Connection.INT_TYPE, // Y
-    Connection.INT_TYPE, // Angle
-    Connection.BOOL_TYPE, // Solid
-  };
-
   private Object[] dataArray = new Object[]
   {
-    new Integer(0),
-    new Integer(0),
-    new Integer(0),
-    new Integer(0),
-    new Boolean(true),
+    new Integer(getX()), // X
+    new Integer(getY()), // Y
+    new Integer(getAngle()), // Angle
+    new Boolean(true), // Solid?
   };
 
   public Object[] getData()
   {
-    if (((Integer)dataArray[0]).intValue() != getRadius()) dataArray[0] = new Integer(getRadius());
-    if (((Integer)dataArray[1]).intValue() != getX()) dataArray[1] = new Integer(getX());
-    if (((Integer)dataArray[2]).intValue() != getY()) dataArray[2] = new Integer(getY());
-    if (((Integer)dataArray[3]).intValue() != getAngle()) dataArray[3] = new Integer(getAngle());
-    if (((Boolean)dataArray[4]).booleanValue() != isSolid()) dataArray[4] = new Boolean(isSolid());
+    if (((Integer)dataArray[0]).intValue() != getX()) dataArray[0] = new Integer(getX());
+    if (((Integer)dataArray[1]).intValue() != getY()) dataArray[1] = new Integer(getY());
+    if (((Integer)dataArray[2]).intValue() != getAngle()) dataArray[2] = new Integer(getAngle());
+    if (((Boolean)dataArray[3]).booleanValue() != isSolid()) dataArray[3] = new Boolean(isSolid());
     return dataArray;
   }
 
   public void loadFromData(Object[] data)
   {
-    setRadius(((Integer)data[0]).intValue());
-    setX(((Integer)data[1]).intValue());
-    setY(((Integer)data[2]).intValue());
-    setAngle(((Integer)data[3]).intValue());
-    setSolid(((Boolean)data[4]).booleanValue());
+    setX(((Integer)data[0]).intValue());
+    setY(((Integer)data[1]).intValue());
+    setAngle(((Integer)data[2]).intValue());
+    setSolid(((Boolean)data[3]).booleanValue());
   }
 
   private static class PlayerFactory implements SyncableFactory
   {
+    protected static final byte[] syncTypes = new byte[]
+    {
+      Connection.INT_TYPE, // X
+      Connection.INT_TYPE, // Y
+      Connection.INT_TYPE, // Angle
+      Connection.BOOL_TYPE, // Solid?
+    };
+
     public void register()
     {
       syncId = Connection.register(syncTypes, this);

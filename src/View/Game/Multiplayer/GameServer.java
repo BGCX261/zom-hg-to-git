@@ -34,8 +34,6 @@ class GameServer {
   // In our description we have a delimiter between the game name and the game id.
   public static final String DESCRIPTION_DELIM = "#";
 
-  // Remember what time we last ticked, so we can keep time.
-  private long lastTickTime;
   // The number of ticks so far.
   private long tickCount = 0;
   // A bare minimum object that we use as a lock for notifying threads that the
@@ -295,11 +293,11 @@ class GameServer {
       game.getWorld().lockForRead();
 
       // If we don't want to forcibly update the remote player, and we do know about them
-      // already then we're updating
-      // one less thing than we know about.
+      // already then we're updating one less thing than we know about.
       int thingSize = game.getWorld().getThingCount();
       if (!updateRemotePlayer) thingSize--;
 
+      System.out.println("writing thing count "+thingSize);
       conn.writeInt(thingSize);
 
       for (int ii = 0; ii < game.getWorld().getThingCount(); ii++)
@@ -334,6 +332,7 @@ class GameServer {
 
           game.getWorld().lockForWrite();
           game.getWorld().addThing(remotePlayer);
+          game.getWorld().forceAdd();
           game.getWorld().unlock();
         }
         catch (InstantiationException ex)

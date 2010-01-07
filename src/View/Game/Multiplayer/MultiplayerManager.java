@@ -17,7 +17,7 @@ import javax.microedition.io.StreamConnection;
 public class MultiplayerManager {
 
   // Length of multiplayer ticks, in milliseconds.
-  public final static int TICK_LENGTH = 100;
+  public final static int TICK_LENGTH = 50;
 
   private GameClient client = null;
   private GameServer server = null;
@@ -32,6 +32,7 @@ public class MultiplayerManager {
     GameConfig.registerForSync();
     Player.registerForSync();
     StaticWorldBuilder.registerForSync();
+    Bullet.registerForSync();
   }
   
   // Manage the given game as a client to the given server, and also start serving it to anybody else who might want it (Serving not yet included - TODO)

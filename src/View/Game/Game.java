@@ -3,6 +3,8 @@ package View.Game;
 import View.Game.Multiplayer.MultiplayerManager;
 import View.View;
 import World.*;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 import javax.microedition.lcdui.*;
 import javax.microedition.lcdui.game.GameCanvas;
@@ -12,7 +14,7 @@ import javax.microedition.lcdui.game.GameCanvas;
  *
  * @author Tim Perry
  */
-public class Game extends GameCanvas implements View, Runnable {
+public class Game extends GameCanvas implements View {
 
   private final World world;
   private final GameConfig config;
@@ -69,7 +71,10 @@ public class Game extends GameCanvas implements View, Runnable {
     System.out.println("Game has display");
     d.setCurrent(this);
     world.getMap().prepBackgroundForScreen(getWidth(), getHeight());
-    new Thread(this).start();
+    
+    GameLoop gameLoop = new GameLoop();
+    gameLoop.prepare();
+    new Timer().scheduleAtFixedRate(gameLoop, 0, TICK_LENGTH);
   }  
 
   public int getCameraX()
@@ -93,20 +98,25 @@ public class Game extends GameCanvas implements View, Runnable {
     return world;
   }
 
-  public void run()
+  private class GameLoop extends TimerTask
   {
-    running = true;
-    
-    multiplayerManager.start();
-
-    long timeToWait;
-    long lastTickTime = System.currentTimeMillis();
-
-    Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
-    
-    // Game loop.
-    while (running)
+    public void prepare()
     {
+      running = true;
+
+      if (multiplayerManager != null) multiplayerManager.start();
+    }
+
+    public void run()
+    {
+      if (!running) cancel();
+
+      // Run every controller
+      for (int ii = 0; ii < controllers.size(); ii++)
+      {
+        ((Controller)controllers.elementAt(ii)).run(getWorld());
+      }
+
       // Look at player input, control the local player
       localPlayer.setKeys(getKeyStates());
 
@@ -124,23 +134,8 @@ public class Game extends GameCanvas implements View, Runnable {
 
       // Draw everything out.
       draw();
-
-      // Work out how much of time we have left to kill in this tick, and then wait
-      // that much time.
-      timeToWait = (lastTickTime - System.currentTimeMillis()) + TICK_LENGTH;
-      while (timeToWait > 0)
-      {
-        try
-        {
-          Thread.sleep(timeToWait);
-        }
-        catch (InterruptedException e) { }
-
-        timeToWait = (lastTickTime - System.currentTimeMillis()) + TICK_LENGTH;
-      }
-
-      lastTickTime = System.currentTimeMillis();
     }
+
   }
 
   // TODO - Checksum everything in the game into one long. Might be challenging...

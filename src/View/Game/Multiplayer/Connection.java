@@ -83,23 +83,30 @@ public class Connection {
   // Returns an array of bytes, each matching to a datatype, as defined in Connection
   public static byte[] getTypes(int syncId)
   {
+    if (syncId == -1) return new byte[0];
     return (byte[]) types.elementAt(syncId);
   }
 
   // Returns a syncableFactory for the given sync id.
-  public static Class getFactory(int syncId)
+  public static SyncableFactory getFactory(int syncId)
   {
-    return (Class) factories.elementAt(syncId);
+    return (SyncableFactory) factories.elementAt(syncId);
   }
 
   public Syncable buildInstance(int syncId, Object[] data)
   {
-    return ((SyncableFactory) factories.elementAt(syncId)).buildFromData(data);
+    if (syncId == -1) return null;
+    return getFactory(syncId).buildFromData(data);
   }
 
   public void write(Syncable s) throws IOException
   {
-    write(s.getSyncId(), s.getData());
+    if (DEBUG) System.out.println("Writing syncable, getting id");
+    int id = s.getSyncId();
+    if (DEBUG) System.out.println("Got id for write - "+id);
+    Object[] data = s.getData();
+    if (DEBUG) System.out.println("Got data for write, writing!");
+    write(id, data);
   }
 
   // Write some data to the stream. Data should be in the correct formats for the given
@@ -167,6 +174,7 @@ public class Connection {
 
   public Object[] read() throws IOException
   {
+    if (DEBUG) System.out.println("Reading sync id");
     int syncId = readInt();
     return read(syncId);
   }
@@ -174,6 +182,7 @@ public class Connection {
   // Load a full object's data, and then build one of those objects with the relevant syncable factory
   public Syncable readAndBuild() throws IOException, InstantiationException
   {
+    if (DEBUG) System.out.println("Read (+build) getting sync id");
     int syncId = readInt();
     Object[] data = read(syncId);
     
@@ -183,6 +192,7 @@ public class Connection {
   // Loads a full object's data, and then updates the given object to use that data.
   public void readAndUpdate(Syncable s) throws IOException, ClassCastException
   {
+    if (DEBUG) System.out.println("Read (+update) getting sync id");
     int syncId = readInt();
     if (syncId != s.getSyncId()) throw new ClassCastException();
     Object[] data = read(syncId);
@@ -194,6 +204,8 @@ public class Connection {
   // by the next integer in the stream. All data is packed into object wrappers (Integer etc.)
   private Object[] read(int syncId) throws IOException
   {
+    if (DEBUG) System.out.println("Reading object of type - "+syncId);
+
     byte[] datatypes = getTypes(syncId);
     Object[] data = new Object[datatypes.length];
 
@@ -249,7 +261,6 @@ public class Connection {
 
     if (DEBUG)
     {
-      System.out.println("Read object - type "+syncId);
       for (int ii = 0; ii < data.length; ii++)
       {
         System.out.println(ii+" = "+data[ii].toString());
@@ -270,7 +281,14 @@ public class Connection {
 
   public int readInt() throws IOException
   {
-    return in.readInt();
+    if (DEBUG)  
+    {
+      System.out.print("Expecting int - ");
+      int i = in.readInt();
+      System.out.println("got "+i);
+      return i;
+    }
+    else return in.readInt();
   }
 
   public void writeByte(byte b) throws IOException
@@ -281,7 +299,14 @@ public class Connection {
 
   public byte readByte() throws IOException
   {
-    return in.readByte();
+    if (DEBUG)
+    {
+      System.out.print("Expecting byte - ");
+      byte b = in.readByte();
+      System.out.println("got "+b);
+      return b;
+    }
+    else return in.readByte();
   }
 
   public void writeLong(long l) throws IOException
@@ -292,7 +317,14 @@ public class Connection {
 
   public long readLong() throws IOException
   {
-    return in.readLong();
+    if (DEBUG)
+    {
+      System.out.print("Expecting long - ");
+      long l = in.readLong();
+      System.out.println("got "+l);
+      return l;
+    }
+    else return in.readLong();
   }
 
   public void writeDouble(double d) throws IOException
@@ -303,7 +335,14 @@ public class Connection {
 
   public double readDouble() throws IOException
   {
-    return in.readDouble();
+    if (DEBUG)
+    {
+      System.out.print("Expecting double - ");
+      double d = in.readDouble();
+      System.out.println("got "+d);
+      return d;
+    }
+    else return in.readDouble();
   }
 
   public void writeFloat(float f) throws IOException
@@ -314,7 +353,14 @@ public class Connection {
 
   public float readFloat() throws IOException
   {
-    return in.readFloat();
+    if (DEBUG)
+    {
+      System.out.print("Expecting float - ");
+      float f = in.readFloat();
+      System.out.println("got "+f);
+      return f;
+    }
+    else return in.readFloat();
   }
 
   public void writeString(String s) throws IOException
@@ -325,7 +371,14 @@ public class Connection {
 
   public String readString() throws IOException
   {
-    return in.readUTF();
+    if (DEBUG)
+    {
+      System.out.print("Expecting string - ");
+      String s = in.readUTF();
+      System.out.println("got "+s);
+      return s;
+    }
+    else return in.readUTF();
   }
 
   public void writeImage(Image i) throws IOException
@@ -336,6 +389,7 @@ public class Connection {
 
   public Image readImage() throws IOException
   {
+    if (DEBUG) System.out.println("Expecting image");
     return in.readImage();
   }
 
@@ -347,11 +401,13 @@ public class Connection {
 
   public boolean[] readBoolArray() throws IOException
   {
+    if (DEBUG) System.out.println("Expecting bool array");
     return in.readBoolArray();
   }
 
   public boolean[] readBoolArray(int l) throws IOException
   {
+    if (DEBUG) System.out.println("Expecting bool array of length "+l);
     return in.readBoolArray(l);
   }
 
@@ -363,6 +419,7 @@ public class Connection {
 
   public boolean[][] read2dBoolArray(boolean isJagged) throws IOException
   {
+    if (DEBUG) System.out.println("Expecting 2d bool array");
     return in.read2dBoolArray(isJagged);
   }
 
@@ -374,11 +431,19 @@ public class Connection {
 
   public boolean readBool() throws IOException
   {
-    return in.readBoolean();
+    if (DEBUG)
+    {
+      System.out.print("Expecting boolean - ");
+      boolean b = in.readBoolean();
+      System.out.println("got "+b);
+      return b;
+    }
+    else return in.readBoolean();
   }
 
   public void flush() throws IOException
   {
+    if (DEBUG) System.out.println("Flushing");
     out.flush();
   }
 

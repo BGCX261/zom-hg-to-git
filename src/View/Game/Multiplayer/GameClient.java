@@ -2,7 +2,6 @@ package View.Game.Multiplayer;
 
 import View.Game.*;
 import World.LocalPlayer;
-import World.Player;
 import World.Thing;
 import java.io.IOException;
 
@@ -122,10 +121,10 @@ class GameClient implements Runnable {
         else
         {
           localThing = (Thing) conn.readAndBuild();
+          if (localThing == null) continue;
+          
           localThing.setThingId(thingId);
-          System.out.println("Adding");
           game.getWorld().addThing(localThing);
-          System.out.println("added");
         }
       }
       game.getWorld().unlock();

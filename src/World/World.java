@@ -1,5 +1,6 @@
 package World;
 
+import com.zom.util.Queue;
 import java.util.Vector;
 
 /**
@@ -18,6 +19,7 @@ public class World {
   private final Vector thingVector;
   private int nextId = 10;
   private static final int MAX_THINGS = 100;
+  private final Queue thingsToAdd = new Queue();
 
   // Positive indicates number of readers with locks, negative is number
   // of writers with locks (can only be -1), 0 is unlocked.
@@ -38,13 +40,25 @@ public class World {
 
   public void addThing(Thing thing)
   {
-    if (thing.getThingId() == -1)
+    thingsToAdd.enqueue(thing);
+  }
+
+  public void forceAdd()
+  {
+    if (!thingsToAdd.empty()) System.out.println("Forcibly adding");
+    while (!thingsToAdd.empty())
     {
-      thing.setThingId(nextId);
-      nextId++;
+      Thing thing = (Thing) thingsToAdd.dequeue();
+
+      if (thing.getThingId() == -1)
+      {
+        thing.setThingId(nextId);
+        nextId++;
+      }
+
+      thingVector.addElement(thing);
+      indexedThings[thing.getThingId()] = thing;
     }
-    thingVector.addElement(thing);
-    indexedThings[thing.getThingId()] = thing;
   }
 
   public void removeThing(int thingId)
@@ -80,30 +94,25 @@ public class World {
   // REPORT - Can talk about refactoring this to allow concurrency better!
   public void tick()
   {
-    Thing t;
-    Thing[] thingArray;
-
-    synchronized (thingVector)
-    {
-      thingArray = new Thing[thingVector.size()];
-      thingVector.copyInto(thingArray);
-    }
-
     lockForRead();
     // Go through every thing and have it work out what it wants to do.
-    for (int ii = 0; ii < thingArray.length; ii++)
+    for (int ii = 0; ii < thingVector.size(); ii++)
     {
-      thingArray[ii].calculateMoves(this);
+      Thing thing = (Thing) thingVector.elementAt(ii);
+      thing.calculateMoves(this);
     }
     unlock();
 
     // Before we actually make the moves we need to make sure nobody else is trying
     // to read the world for syncing with other phones, or similar, so we get a lock.
     lockForWrite();
-    for (int ii = 0; ii < thingArray.length; ii++)
+    for (int ii = 0; ii < thingVector.size(); ii++)
     {
-      thingArray[ii].makeMoves(this);
+      Thing thing = (Thing) thingVector.elementAt(ii);
+      thing.makeMoves(this);
     }
+
+    forceAdd();
     unlock();
   }
 

@@ -17,7 +17,6 @@ public class LocalPlayer extends Player {
 
   private int lastKeyState;
   private long lastTurnTime;
-  private long lastMoveTime;
 
   public static final byte RELATIVE_CONTROLS = 0;
   public static final byte ABSOLUTE_CONTROLS = 1;
@@ -26,6 +25,7 @@ public class LocalPlayer extends Player {
   private static final byte BACKWARD_KEY = GameCanvas.DOWN_PRESSED;
   private static final byte LEFT_KEY = GameCanvas.LEFT_PRESSED;
   private static final byte RIGHT_KEY = GameCanvas.RIGHT_PRESSED;
+  private static final int FIRE_KEY = GameCanvas.FIRE_PRESSED;
 
   private static byte controlType = ABSOLUTE_CONTROLS;
 
@@ -62,43 +62,39 @@ public class LocalPlayer extends Player {
 
     if (controlType == ABSOLUTE_CONTROLS)
     { // TODO - don't move if turning?
-      if (System.currentTimeMillis() - lastMoveTime <= MOVE_DELAY) return;
-
       if ((lastKeyState & FORWARD_KEY) != 0)
       {
-        lastMoveTime = System.currentTimeMillis();
         planSetAngle(0);
         planMove(SPEED);
       }
       if ((lastKeyState & BACKWARD_KEY) != 0)
       {
-        lastMoveTime = System.currentTimeMillis();
         planSetAngle(8);
         planMove(SPEED);
       }
       if ((lastKeyState & LEFT_KEY) != 0)
       {
-        lastMoveTime = System.currentTimeMillis();
         planSetAngle(12);
         planMove(SPEED);
       }
       if ((lastKeyState & RIGHT_KEY) != 0)
       {
-        lastMoveTime = System.currentTimeMillis();
         planSetAngle(4);
         planMove(SPEED);
+      }
+      if ((lastKeyState & FIRE_KEY) != 0)
+      {
+        planFire();
       }
     }
     else if (controlType == RELATIVE_CONTROLS)
     {
-      if ((lastKeyState & FORWARD_KEY) != 0 && System.currentTimeMillis() - lastMoveTime > MOVE_DELAY)
+      if ((lastKeyState & FORWARD_KEY) != 0)
       {
-        lastMoveTime = System.currentTimeMillis();
         planMove(SPEED);
       }
-      if ((lastKeyState & BACKWARD_KEY) != 0 && System.currentTimeMillis() - lastMoveTime > MOVE_DELAY)
+      if ((lastKeyState & BACKWARD_KEY) != 0)
       {
-        lastMoveTime = System.currentTimeMillis();
         planMove( - SPEED);
       }
 
