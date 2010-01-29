@@ -18,6 +18,9 @@ class JoinGameMenu extends Menu implements View, GameSearchListener, CommandList
   private Vector gameList = new Vector();
   private GameSearcher searcher;
 
+  // REPORT - Could talk about this as my first impact with concurrent bugs?
+  private boolean joining = false;
+
   public JoinGameMenu(MIDlet midlet)
   {
     super(midlet, "Searching for games...", "Join");
@@ -48,6 +51,8 @@ class JoinGameMenu extends Menu implements View, GameSearchListener, CommandList
   public void commandAction(Command c, Displayable d)
   {
     if (c == select) {
+      // If we're already in the process of joining one server, don't try and join another.
+      if (joining == true) return;
       List l = (List) d;
       if (l.getSelectedIndex() == -1) return;
 
@@ -56,6 +61,7 @@ class JoinGameMenu extends Menu implements View, GameSearchListener, CommandList
       String connectionString = searcher.getConnectionString(selectedGameId);      
 
       // Go and try to get the game from the server. This calls us back with a response, to avoid locking the ui.
+      joining = true;
       MultiplayerManager.joinGame(connectionString, this);
     }
     else super.commandAction(c, d);
@@ -64,12 +70,14 @@ class JoinGameMenu extends Menu implements View, GameSearchListener, CommandList
   // Call back if we successfully join a game - if we do, we put it up on the screen.
   public void joinSucceeded(Game g)
   {
+    joining = false;
     midlet.showGame(g);
   }
 
   // Call back if we fail to join a game - throw up an error message, and then come back to here.
   public void joinFailed()
   {
+    joining = false;
     display.setCurrent(new Alert("Couldn't connect.", "Failed to join the selected game.", null, AlertType.ERROR), this);
   }
 
