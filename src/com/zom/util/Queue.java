@@ -50,6 +50,11 @@ public class Queue
     return size == 0;
   }
 
+  public int size()
+  {
+    return size;
+  }
+
   private void expand()
   {
     synchronized(frontLock)
