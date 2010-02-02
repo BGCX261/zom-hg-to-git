@@ -14,7 +14,6 @@ public class Pistol extends Gun
   {
     if (System.currentTimeMillis() - lastFireTime > FIRE_DELAY)
     {
-      System.out.println("firing, x = "+x+", y = "+y+", angle = "+angle+", playerId = "+playerId);
       Bullet b = Bullet.makeBullet(x, y, angle, playerId);
       w.addThing(b);
       
