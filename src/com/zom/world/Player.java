@@ -62,7 +62,7 @@ public abstract class Player extends Thing {
   {
     if (firePlanned)
     {
-      gun.fire(w, getX(), getY(), getAngle());
+      gun.fire(w, getX(), getY(), getAngle(), getThingId());
       firePlanned = false;
     }
     
@@ -94,8 +94,7 @@ public abstract class Player extends Thing {
   {
     new Integer(getX()), // X
     new Integer(getY()), // Y
-    new Integer(getAngle()), // Angle
-    new Boolean(true), // Solid?
+    new Integer(getAngle()) // Angle
   };
 
   public Object[] getData()
@@ -103,7 +102,6 @@ public abstract class Player extends Thing {
     if (((Integer)dataArray[0]).intValue() != getX()) dataArray[0] = new Integer(getX());
     if (((Integer)dataArray[1]).intValue() != getY()) dataArray[1] = new Integer(getY());
     if (((Integer)dataArray[2]).intValue() != getAngle()) dataArray[2] = new Integer(getAngle());
-    if (((Boolean)dataArray[3]).booleanValue() != isSolid()) dataArray[3] = new Boolean(isSolid());
     return dataArray;
   }
 
@@ -112,7 +110,6 @@ public abstract class Player extends Thing {
     setX(((Integer)data[0]).intValue());
     setY(((Integer)data[1]).intValue());
     setAngle(((Integer)data[2]).intValue());
-    setSolid(((Boolean)data[3]).booleanValue());
   }
 
   private static class PlayerFactory implements SyncableFactory
@@ -121,8 +118,7 @@ public abstract class Player extends Thing {
     {
       Connection.INT_TYPE, // X
       Connection.INT_TYPE, // Y
-      Connection.INT_TYPE, // Angle
-      Connection.BOOL_TYPE, // Solid?
+      Connection.INT_TYPE // Angle
     };
 
     public void register()

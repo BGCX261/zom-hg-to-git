@@ -9,34 +9,43 @@ import javax.microedition.lcdui.Graphics;
 /**
  * Bullet
  *
+ * This is used for bullets fire by PLAYERS ONLY. If you want to make a bullet class for use by non players
+ * it'll require a few tweaks - players have reliable consitent ids, so firerPlayerId is fine, but others
+ * could have their ids changed when the server finds out about them, so this mechanism would break. If you want
+ * to do this create a firer reference, and update the id if and when the reference changes (definitely before
+ * every outward sync).
+ *
  * @author Tim Perry (tim@tim-perry.co.uk)
  */
 public class Bullet extends Thing implements Syncable
 {
   private static int syncId = -1;
   private static BulletFactory factory = new BulletFactory();
-  protected static final byte SPEED = 5;
+  protected static final byte SPEED = 10;
+
+  private int firerPlayerId = -1;
 
   // Private because bullets should all come from the bullet factory, possibly via makeBullet()
   private Bullet()
   {
-    super(2);
+    super(1);
   }
 
-  public static Bullet makeBullet(int x, int y, int angle)
+  public static Bullet makeBullet(int x, int y, int angle, int playerId)
   {
     return (Bullet) factory.buildFromData(new Object[]
     {
       new Integer(x),
       new Integer(y),
-      new Integer(angle)
+      new Integer(angle),
+      new Integer(playerId)
     });
   }
 
   public void draw(Graphics g)
   {
     g.setColor(0, 0, 0);
-    g.fillRect(getX(), getY(), getRadius(), getRadius());
+    g.fillRect(getX(), getY(), getRadius()*2, getRadius()*2);
   }
 
   public void calculateMoves(World w)
@@ -47,6 +56,23 @@ public class Bullet extends Thing implements Syncable
   public void calculateMoves(World w, double tickDelta)
   {
     planMove((int) (SPEED * tickDelta));
+  }
+
+  public boolean collide(Map map, World w)
+  {
+    w.removeThing(getThingId());
+    return true;
+  }
+
+  public boolean collide(Thing t, World w)
+  {
+    // We don't collide with the Thing that fired us.
+    if (t.getThingId() == firerPlayerId) return false;
+    else
+    {
+      w.removeThing(getThingId());
+      return true;
+    }
   }
 
   public static void registerForSync()
@@ -63,7 +89,8 @@ public class Bullet extends Thing implements Syncable
   {
     new Integer(getX()),
     new Integer(getY()),
-    new Integer(getAngle())
+    new Integer(getAngle()),
+    new Integer(firerPlayerId)
   };
 
   public Object[] getData()
@@ -71,6 +98,7 @@ public class Bullet extends Thing implements Syncable
     dataArray[0] = new Integer(getX());
     dataArray[1] = new Integer(getY());
     if (((Integer)dataArray[2]).intValue() != getAngle()) dataArray[2] = new Integer(getAngle());
+    if (((Integer)dataArray[3]).intValue() != firerPlayerId) dataArray[3] = new Integer(firerPlayerId);
 
     return dataArray;
   }
@@ -80,6 +108,7 @@ public class Bullet extends Thing implements Syncable
     setX(((Integer)data[0]).intValue());
     setY(((Integer)data[1]).intValue());
     setAngle(((Integer)data[2]).intValue());
+    firerPlayerId = ((Integer) data[3]).intValue();
   }
 
   private static class BulletFactory implements SyncableFactory
@@ -89,6 +118,7 @@ public class Bullet extends Thing implements Syncable
       Connection.INT_TYPE, // X
       Connection.INT_TYPE, // Y
       Connection.INT_TYPE, // Angle
+      Connection.INT_TYPE  // Firer ID
     };
 
     public void register()
@@ -121,6 +151,7 @@ public class Bullet extends Thing implements Syncable
       Bullet b = (Bullet) bulletPool.elementAt(nextBullet);
       nextBullet = (nextBullet + 1) % BULLET_POOL_SIZE;
       b.loadFromData(data);
+      b.setThingId(-1);
       return b;
     }
   }

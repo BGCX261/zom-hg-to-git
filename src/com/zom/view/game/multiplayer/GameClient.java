@@ -44,7 +44,7 @@ class GameClient implements Runnable, ThingLifeListener {
 
   public void run()
   {
-    game.getWorld().setThingLifeListener(this);
+    game.getWorld().addThingLifeListener(this);
 
     running = true;
 
@@ -106,15 +106,16 @@ class GameClient implements Runnable, ThingLifeListener {
     try
     {
       // REPORT - say why the lockForWrite can't go here!
-      int thingCount = conn.readInt();
+      byte thingCount = conn.readByte();
 
-      int thingId;
+      byte thingId;
       Thing localThing;
 
+      // TODO - Try moving the lock inside the loop, and see if that in anyway improves things.
       game.getWorld().lockForWrite();
       for (int ii = 0; ii < thingCount; ii++)
       {
-        thingId = conn.readInt();
+        thingId = conn.readByte();
         localThing = game.getWorld().getThing(thingId);
 
         // If we already have this thing then we update it. If we don't then we add it.
@@ -131,6 +132,18 @@ class GameClient implements Runnable, ThingLifeListener {
           game.getWorld().addThing(localThing);
         }
       }
+
+      int deathCount = conn.readInt();
+
+      // We avoid listening to deaths; it'd be pointless because since we have the write lock nobody else can cause any
+      // deaths, so we'd just be hearing about the deaths we're causing, which we don't want to do.
+      game.getWorld().removeThingLifeListener(this);
+      for (int ii = 0; ii < deathCount; ii++)
+      {
+        game.getWorld().removeThing(conn.readInt());
+      }
+      game.getWorld().addThingLifeListener(this);
+      
       game.getWorld().unlock();
 
       // Get our ticks in sync.

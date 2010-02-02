@@ -1,6 +1,5 @@
 package com.zom.world;
 
-import com.zom.view.game.multiplayer.Connection;
 import com.zom.view.game.multiplayer.Syncable;
 import javax.microedition.lcdui.Graphics;
 
@@ -29,9 +28,6 @@ public abstract class Thing implements Syncable {
   private int thingId = -1;
 
   private final int radius;
-
-  // Things are only considered for collision if they are solid. If not then other Things can (and will) go straight though them.
-  protected boolean solid = true;
 
   public Thing(int radius)
   {
@@ -126,7 +122,7 @@ public abstract class Thing implements Syncable {
   }
   
   // Converts an int into a valid angle (basically just a mod function)
-  public int makeAngle(int angle)
+  public static int makeAngle(int angle)
   {
     // Have to push the angle to positive, because java's mod function does not do sensible things with negative numbers.
     while (angle < 0)
@@ -137,13 +133,13 @@ public abstract class Thing implements Syncable {
   }
 
   // Cos function, defined over our angle system (integers, mod 16)
-  protected double cos(int angle)
+  public static double cos(int angle)
   {
     return COS_LOOKUP_TABLE[makeAngle(angle)];
   }
 
   // Sine function, defined over our angle system (integers, mod 16) 
-  protected double sin(int angle)
+  public static double sin(int angle)
   {
     return SIN_LOOKUP_TABLE[makeAngle(angle)];
   }
@@ -153,16 +149,6 @@ public abstract class Thing implements Syncable {
   {
     plannedX = getX() + (int) (distance * sin(getPlannedAngle()));
     plannedY = getY() - (int) (distance * cos(getPlannedAngle()));
-  }
-
-  public boolean isSolid()
-  {
-    return solid;
-  }
-
-  public void setSolid(boolean solid)
-  {
-    this.solid = solid;
   }
 
   public abstract void draw(Graphics g);
@@ -181,15 +167,27 @@ public abstract class Thing implements Syncable {
   public void makeMoves(World w)
   {
     setAngle(plannedAngle);
-    if (!isSolid() || w.isEmpty(plannedX, plannedY, radius))
+    if (!w.doesPlanHaveCollisions(this))
     {
       setX(plannedX);
       setY(plannedY);
     }
   }
 
-  // Fix a collision that exists between you and your planned position. Most Things should reset to their current position, some things will do other things
-  // (e.g. bullets cease to exist on contact with walls, or could bounce?)
-  public void fixPlannedCollide(Map map) { }
+  // This will be called if your planned position is in collision with the map. Subclasses should return true if they wish to collide with the map
+  // (bullets) and false if not (...ghosts?). World parameter can be used to, for example, remove bullets from the world on collision.
+  public boolean collide(Map map, World w)
+  {
+    return true;
+  }
+
+  // This will be called if your planned position is in collision with somebody else. Subclasses should return true if they want to collide with
+  // that person (bullets always true, people could return false when they collide with other people, possibly?), and false if not (items on the
+  // floor, etc). World parameter is for making changes based on the collision.
+  // Collision will occur only if BOTH parties involved return true from this function; if either feels they shouldn't hit the other party, they won't.
+  public boolean collide(Thing t, World w)
+  {
+    return true;
+  }
 
 }

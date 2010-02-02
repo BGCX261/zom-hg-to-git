@@ -3,6 +3,7 @@ package com.zom.world;
 import com.zom.util.Queue;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Vector;
 
 /**
  * World
@@ -21,12 +22,13 @@ public class World {
   private static final int FIRST_ALLOCATABLE_THING_ID = 10;
   private static final int MAX_THING_ID = 100;
   private final Queue thingsToAdd = new Queue();
+  private final Queue thingsToRemove = new Queue();
 
   private long lastTickTime = 0;
 
   private final Map map;
 
-  private ThingLifeListener lifeListener = null;
+  private Vector lifeListeners = new Vector();
 
   // Positive indicates number of readers with locks, negative is number
   // of writers with locks (can only be -1), 0 is unlocked.
@@ -44,9 +46,14 @@ public class World {
     return map;
   }
 
-  public void setThingLifeListener(ThingLifeListener l)
+  public void addThingLifeListener(ThingLifeListener l)
   {
-    lifeListener = l;
+    lifeListeners.addElement(l);
+  }
+
+  public void removeThingLifeListener(ThingLifeListener l)
+  {
+    lifeListeners.removeElement(l);
   }
 
   public int getNextId()
@@ -71,8 +78,14 @@ public class World {
     thingsToAdd.enqueue(thing);
   }
 
+  // Write lock not required.
+  public void removeThing(int thingId)
+  {
+    thingsToRemove.enqueue(new Integer(thingId));
+  }
+
   // Before using this you MUST HAVE A WRITE LOCk
-  public void forceAdd()
+  public void forceUpdate()
   {
     // Do we have a birth to announce?
     boolean birth = false;
@@ -94,25 +107,27 @@ public class World {
       if (nextId == thing.getThingId()) nextId++;
 
       // If birth has occured, and somebody cares, tell them.
-      if (birth == true && lifeListener != null)
+      if (birth == true)
       {
-        lifeListener.thingBorn(thing);
+        announceBirth(thing);
         birth = false;
       }
     }
-  }
 
-  // Before using this you MUST HAVE A WRITE LOCk
-  public void removeThing(int thingId)
-  {
-    Integer id = new Integer(thingId);
-    Thing t = (Thing) things.get(id);
-    
-    things.remove(new Integer(thingId));
+    while (!thingsToRemove.empty())
+    {
+      Integer id = (Integer) thingsToRemove.dequeue();
 
-    thingCount--;
+      if (things.containsKey(id))
+      {
+        Thing t = (Thing) things.get(id);
 
-    lifeListener.thingDied(t);
+        things.remove(id);
+        thingCount--;
+
+        announceDeath(t);
+      }
+    }
   }
 
   // Before using this you MUST HAVE A WRITE LOCK
@@ -132,6 +147,22 @@ public class World {
     things.put(new Integer(newThingId), t);
   }
 
+  public void announceBirth(Thing t)
+  {
+    for (int ii = 0; ii < lifeListeners.size(); ii++)
+    {
+      ((ThingLifeListener) lifeListeners.elementAt(ii)).thingBorn(t);
+    }
+  }
+
+  public void announceDeath(Thing t)
+  {
+    for (int ii = 0; ii < lifeListeners.size(); ii++)
+    {
+      ((ThingLifeListener) lifeListeners.elementAt(ii)).thingDied(t);
+    }
+  }
+
   public int getThingCount()
   {
     return thingCount;
@@ -147,11 +178,28 @@ public class World {
     return (Thing) things.get(new Integer(thingId));
   }
 
-  // Returns true if there is no solid Thing or static element of the world at the given coordinates.
-  public boolean isEmpty(int x, int y, int radius)
+  // Looks at the planned position of a thing, and checks that it's free of obstacles either in terms of the map, or of other Things.
+  // If it looks like there is a collision it asks the relevant parties, via their collide() methods, whether collision should occur.
+  // Return value indicates whether a collision occurs (true is yes, false is no).
+  public boolean doesPlanHaveCollisions(Thing t)
   {
-    // TODO - thing to thing collision
-    return map.isPositionFree(x, y, radius);
+    if (!map.isPositionFree(t.getPlannedX(), t.getPlannedY(), t.getRadius()) && t.collide(map, this)) return true;
+
+    // Go through every thing, and see if they're on this spot.
+    for (Enumeration thingsEnum = getThings(); thingsEnum.hasMoreElements();)
+    {
+      Thing otherThing = (Thing) thingsEnum.nextElement();
+      if (otherThing == t) continue;
+      
+      int distance = t.getRadius() + otherThing.getRadius();
+
+      // If the things are suitable close to one another, and they both agree that collision should occur, it occurs.
+      if (Math.abs(otherThing.getX() - t.getPlannedX()) < distance &&
+          Math.abs(otherThing.getY() - t.getPlannedY()) < distance &&
+          t.collide(otherThing, this) && otherThing.collide(t, this)) return true;
+    }
+
+    return false;
   }
 
   // Gets every element to work out where it wants to move to, and then moves every element.
@@ -171,14 +219,14 @@ public class World {
     // Before we actually make the moves we need to make sure nobody else is trying
     // to read the world for syncing with other phones, or similar, so we get a lock.
     lockForWrite();
-    
+
     for (Enumeration thingsEnum = getThings(); thingsEnum.hasMoreElements();)
     {
       ((Thing) thingsEnum.nextElement()).makeMoves(this);
     }
     lastTickTime = System.currentTimeMillis();
 
-    forceAdd();
+    forceUpdate();
     unlock();
   }
 

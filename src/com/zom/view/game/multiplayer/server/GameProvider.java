@@ -12,7 +12,7 @@ import javax.microedition.io.StreamConnectionNotifier;
 
 class GameProvider implements Runnable
 {
-  GameServer mainServer;
+  private GameServer mainServer;
 
   private StreamConnectionNotifier connectionNotifier;
   private final String connectionString;

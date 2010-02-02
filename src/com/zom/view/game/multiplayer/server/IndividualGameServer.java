@@ -1,16 +1,19 @@
 package com.zom.view.game.multiplayer.server;
 
+import com.zom.util.Queue;
 import com.zom.view.game.Game;
 import com.zom.view.game.GameConfig;
 import com.zom.view.game.multiplayer.Connection;
 import com.zom.view.game.multiplayer.MultiplayerManager;
 import com.zom.world.Player;
 import com.zom.world.Thing;
+import com.zom.world.ThingLifeListener;
+import com.zom.world.World;
 import java.io.IOException;
 import java.util.Enumeration;
 import javax.microedition.io.StreamConnection;
 
-class IndividualGameServer implements Runnable
+class IndividualGameServer implements Runnable, ThingLifeListener
 {
   private Connection conn;
   private final byte playerId;
@@ -21,7 +24,10 @@ class IndividualGameServer implements Runnable
   // Singleton to represent the local game server thread.
   protected static final IndividualGameServer localThread = new IndividualGameServer();
 
-  GameServer mainServer;
+  private GameServer mainServer;
+  private World world;
+  
+  private final Queue deadThings = new Queue();
 
   // This is only for creating a stub individual game server that we use to represent the local player's thread, to make other
   // representations make more sense. The created server does _nothing_.
@@ -33,6 +39,8 @@ class IndividualGameServer implements Runnable
   public IndividualGameServer(StreamConnection streamConn, byte playerId, GameServer mainServer)
   {
     this.mainServer = mainServer;
+    world = mainServer.game.getWorld();
+    world.addThingLifeListener(this);
     this.playerId = playerId;
     
     try
@@ -41,7 +49,7 @@ class IndividualGameServer implements Runnable
     }
     catch (IOException e)
     {
-      System.out.println("Couldn\'t get server streams");
+      throw new Error("Couldn\'t get server streams");
     }
   }
 
@@ -129,24 +137,36 @@ class IndividualGameServer implements Runnable
   {
     Thing t;
 
-    mainServer.game.getWorld().lockForRead();
+    world.lockForRead();
 
     // If we don't want to forcibly update the remote player, and we do know about them
     // already then we're updating one less thing than we know about.
-    int thingSize = mainServer.game.getWorld().getThingCount();
+    int thingSize = world.getThingCount();
     if (!updateRemotePlayer) thingSize--;
 
-    conn.writeInt(thingSize);
-    for (Enumeration things = mainServer.game.getWorld().getThings(); things.hasMoreElements();)
+    conn.writeByte((byte) thingSize);
+    for (Enumeration things = world.getThings(); things.hasMoreElements();)
     {
       t = (Thing) things.nextElement();
+
       // If we don't want to forcibly update the remote player, don't give them details about them.
       if (!updateRemotePlayer && t.getThingId() == playerId) continue;
-      conn.writeInt(t.getThingId());
+      conn.writeByte((byte) t.getThingId());
       conn.write(t);
     }
 
-    mainServer.game.getWorld().unlock();
+    world.unlock();
+    
+    synchronized (deadThings)
+    {
+      conn.writeInt(deadThings.size());
+
+      while (!deadThings.empty())
+      {
+        t = (Thing) deadThings.dequeue();
+        conn.writeInt(t.getThingId());
+      }
+    }
 
     // Make sure they know the current tick status
     conn.writeLong(mainServer.getTickCount());
@@ -154,7 +174,8 @@ class IndividualGameServer implements Runnable
 
   protected void recieveChanges() throws IOException
   {
-    Thing remotePlayer = mainServer.game.getWorld().getThing(playerId);
+    Thing remotePlayer = world.getThing(playerId);
+
     if (remotePlayer != null)
     {
       conn.readAndUpdate(remotePlayer);
@@ -165,38 +186,38 @@ class IndividualGameServer implements Runnable
       {
         remotePlayer = (Player) conn.readAndBuild();
         remotePlayer.setThingId(playerId);
-        mainServer.game.getWorld().lockForWrite();
-        mainServer.game.getWorld().addThing(remotePlayer);
-        mainServer.game.getWorld().forceAdd();
-        mainServer.game.getWorld().unlock();
+        world.lockForWrite();
+        world.addThing(remotePlayer);
+        world.forceUpdate();
+        world.unlock();
       }
       catch (InstantiationException ex)
       {
         ex.printStackTrace();
       }
     }
-    
-    // How out of date the data we're being given is.
+
+    // This gives us the time that the object we have were last updated.
     long lastPhysicsTime = -(latency + conn.readInt()) + System.currentTimeMillis();
 
-    int newThings = conn.readInt();
-    if (newThings > 0)
+    int birthCount = conn.readInt();
+    if (birthCount > 0)
     {
-      mainServer.game.getWorld().lockForWrite();
-      for (int ii = 0; ii < newThings; ii++)
+      world.lockForWrite();
+      for (int ii = 0; ii < birthCount; ii++)
       {
         try
         {
           Thing t = (Thing) conn.readAndBuild();
 
-          mainServer.game.getWorld().addThing(t);
-          mainServer.game.getWorld().forceAdd();
+          world.addThing(t);
+          world.forceUpdate();
           
           conn.writeInt(t.getThingId());
 
           // Catch the position of this thing up with where it should be. (REPORT)
-          t.calculateMoves(mainServer.game.getWorld(), (System.currentTimeMillis() - lastPhysicsTime) / Game.TICK_LENGTH);
-          t.makeMoves(mainServer.game.getWorld());
+          t.calculateMoves(world, (System.currentTimeMillis() - lastPhysicsTime) / Game.TICK_LENGTH);
+          t.makeMoves(world);
         }
         // If we fail to build the thing the client wants to build, tell them we're not adding it.
         catch (InstantiationException e)
@@ -204,17 +225,39 @@ class IndividualGameServer implements Runnable
           conn.writeInt(-1);
         }
       }
-      mainServer.game.getWorld().unlock();
+      world.unlock();
     }
-    int deadThings = conn.readInt();
-    if (deadThings > 0)
+    
+    int deathCount = conn.readInt();
+    if (deathCount > 0)
     {
-      mainServer.game.getWorld().lockForWrite();
-      for (int ii = 0; ii < deadThings; ii++)
+      for (int ii = 0; ii < deathCount; ii++)
       {
-        mainServer.game.getWorld().removeThing(conn.readInt());
+        world.removeThing(conn.readInt());
       }
-      mainServer.game.getWorld().unlock();
+
+      // We lock the world so we can write the deaths to it, and we while we do that we avoid listening to deaths; it'd be pointless
+      // because since we have the write lock nobody else can cause any deaths, so we'd just be hearing about things we already know about,
+      // and don't want to.
+      world.lockForWrite();
+      world.removeThingLifeListener(this);
+
+      world.forceUpdate();
+
+      world.addThingLifeListener(this);
+      world.unlock();
+    }
+  }
+
+  // We absolutely totally do not care about births, sync handles them fine without being informed explicitly.
+  public void thingBorn(Thing t) { }
+
+  // We register deaths, so we can inform our client.
+  public void thingDied(Thing t)
+  {
+    synchronized (deadThings)
+    {
+      deadThings.enqueue(t);
     }
   }
 }
