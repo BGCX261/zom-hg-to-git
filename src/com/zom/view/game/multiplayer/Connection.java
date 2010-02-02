@@ -122,7 +122,7 @@ public class Connection {
 
     if (DEBUG) System.out.println("Conn: Latency is " + (endTime - startTime));
 
-    return (int) (endTime - startTime);
+    return (int) (endTime - startTime)/2;
   }
 
   // Does the above ping function multiple times, and averages.
@@ -189,7 +189,7 @@ public class Connection {
       System.out.println("Conn: Writing object - type "+syncId);
       for (int ii = 0; ii < data.length; ii++)
       {
-        System.out.println(ii+" = "+data[ii].toString());
+        System.out.println("Conn:   "+ii+" = "+data[ii].toString());
       }
       System.out.println("Conn: End of object");
     }
