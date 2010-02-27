@@ -16,6 +16,6 @@ public interface Syncable {
 
   public Object[] getData();
   
-  public void loadFromData(Object[] data);
+  public void updateWithData(Object[] data);
 
 }

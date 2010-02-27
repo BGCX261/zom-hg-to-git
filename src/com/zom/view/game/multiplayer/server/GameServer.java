@@ -22,10 +22,6 @@ public class GameServer {
   // This is our thread that waits for connections and gets everything set up.
   private final GameProvider gameProvider;
 
-  // *** Constants for magic numbers ***
-  // Number of checksums to buffer at any time.
-  private final static byte CHECKSUM_BUFFER_SIZE = 5;
-
   // In our description we have a delimiter between the game name and the game id.
   public static final String DESCRIPTION_DELIM = "#";
 
@@ -33,12 +29,6 @@ public class GameServer {
   private long tickCount = 0;
   // A bare minimum object that we use as a lock for notifying threads that the tick has changed.
   protected final Object tickLock = new Object();
-
-  // A mapping from times -> checksum values, and an index to indicate the slot to fill
-  // in with the next checksum.
-  private long[] checksumTimes = new long[CHECKSUM_BUFFER_SIZE];
-  private long[] checksumValues = new long[CHECKSUM_BUFFER_SIZE];
-  private int nextChecksumIndex = 0;
 
   // Are we serving, right now?
   private boolean active;
@@ -137,11 +127,6 @@ public class GameServer {
     {
       if (active)
       {
-        // Calculate checksum for this tick, and save it.
-        checksumValues[nextChecksumIndex] = game.checksum();
-        checksumTimes[nextChecksumIndex] = tickCount;
-        nextChecksumIndex = (nextChecksumIndex + 1) % CHECKSUM_BUFFER_SIZE;
-
         tickCount++;
 
         synchronized(tickLock)

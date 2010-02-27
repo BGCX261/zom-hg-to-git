@@ -21,7 +21,7 @@ public class Bullet extends Thing implements Syncable
 {
   private static int syncId = -1;
   private static BulletFactory factory = new BulletFactory();
-  protected static final byte SPEED = 10;
+  protected static final byte SPEED = 7;
 
   private int firerPlayerId = -1;
 
@@ -31,13 +31,13 @@ public class Bullet extends Thing implements Syncable
     super(1);
   }
 
-  public static Bullet makeBullet(int x, int y, int angle, int playerId)
+  public static Bullet makeBullet(int x, int y, byte angle, int playerId)
   {
     return (Bullet) factory.buildFromData(new Object[]
     {
       new Integer(x),
       new Integer(y),
-      new Integer(angle),
+      new Byte(angle),
       new Integer(playerId)
     });
   }
@@ -68,9 +68,12 @@ public class Bullet extends Thing implements Syncable
   {
     // We don't collide with the Thing that fired us.
     if (t.getThingId() == firerPlayerId) return false;
+
+    // Anything else that we do collide with should die.
     else
     {
       w.removeThing(getThingId());
+      w.removeThing(t.getThingId());
       return true;
     }
   }
@@ -89,7 +92,7 @@ public class Bullet extends Thing implements Syncable
   {
     new Integer(getX()),
     new Integer(getY()),
-    new Integer(getAngle()),
+    new Byte(getAngle()),
     new Integer(firerPlayerId)
   };
 
@@ -97,17 +100,17 @@ public class Bullet extends Thing implements Syncable
   {
     dataArray[0] = new Integer(getX());
     dataArray[1] = new Integer(getY());
-    if (((Integer)dataArray[2]).intValue() != getAngle()) dataArray[2] = new Integer(getAngle());
+    if (((Byte)dataArray[2]).byteValue() != getAngle()) dataArray[2] = new Byte(getAngle());
     if (((Integer)dataArray[3]).intValue() != firerPlayerId) dataArray[3] = new Integer(firerPlayerId);
 
     return dataArray;
   }
 
-  public void loadFromData(Object[] data)
+  public void updateWithData(Object[] data)
   {
     setX(((Integer)data[0]).intValue());
     setY(((Integer)data[1]).intValue());
-    setAngle(((Integer)data[2]).intValue());
+    setAngle(((Byte)data[2]).byteValue());
     firerPlayerId = ((Integer) data[3]).intValue();
   }
 
@@ -115,10 +118,10 @@ public class Bullet extends Thing implements Syncable
   {
     protected static final byte[] syncTypes = new byte[]
     {
-      Connection.INT_TYPE, // X
-      Connection.INT_TYPE, // Y
-      Connection.INT_TYPE, // Angle
-      Connection.INT_TYPE  // Firer ID
+      Connection.INT_TYPE,  // X
+      Connection.INT_TYPE,  // Y
+      Connection.BYTE_TYPE, // Angle
+      Connection.INT_TYPE   // Firer ID
     };
 
     public void register()
@@ -150,7 +153,7 @@ public class Bullet extends Thing implements Syncable
     {
       Bullet b = (Bullet) bulletPool.elementAt(nextBullet);
       nextBullet = (nextBullet + 1) % BULLET_POOL_SIZE;
-      b.loadFromData(data);
+      b.updateWithData(data);
       b.setThingId(-1);
       return b;
     }

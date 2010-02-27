@@ -7,7 +7,7 @@ package com.zom.world;
  */
 public abstract class Gun
 {
-  public abstract void fire(World w, int x, int y, int angle, int playerId);
+  public abstract void fire(World w, int x, int y, byte angle, int playerId);
 
   public abstract void reload();
 }

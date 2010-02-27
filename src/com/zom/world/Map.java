@@ -1,7 +1,6 @@
 package com.zom.world;
 
-import java.io.DataInputStream;
-import java.io.IOException;
+import com.zom.util.Coord;
 import javax.microedition.lcdui.Graphics;
 import javax.microedition.lcdui.Image;
 
@@ -19,38 +18,24 @@ public class Map {
   private int width;
   private int height;
 
+  private Coord[] playerSpawns;
+
   private boolean[][] collisionMap;
-  private int collisionMapScaleFactor;
-  
-  public Map(String mapName)
-  {
-    String mapFolder = "/"+mapName;
-    try {
-      //  TODO - Read from the map settings file
-      width = 579;
-      height = 336;
+  private double collisionMapVerticalScaleFactor = 1;
+  private double collisionMapHorizontalScaleFactor = 1;
 
-      // Load the map's background image
-      setBackgroundTile(Image.createImage(mapFolder+"/bg.png"));
-      // Load the map's collision map
-      loadCollisionMap(mapFolder+"/staticObjects.collMap");
-    }
-    catch (IOException e) {
-      System.out.println("Resources not found");
-      setBackgroundTile(Image.createImage(300,500));
-    }
-  }
-
-  public Map(boolean[][] collisionMap, Image backgroundTile)
+  public Map(int width, int height, Image backgroundTile, boolean[][] collisionMap, Coord[] playerSpawns)
   {
+    setSize(width, height);
     setBackgroundTile(backgroundTile);
     setCollisionMap(collisionMap);
+    this.playerSpawns = playerSpawns;
   }
 
-  // TODO - Does a map with the given name exist? Possible extension - hash to check that it's the right map.
-  public static boolean exists(String mapName)
+  public void setSize(int width, int height)
   {
-    return true;
+    this.width = width;
+    this.height = height;
   }
 
   public int getWidth()
@@ -61,7 +46,7 @@ public class Map {
   public int getHeight()
   {
     return height;
-  } 
+  }
 
   // Optimise the background tile for the given screen width/height - REPORT
   public void prepBackgroundForScreen(int screenWidth, int screenHeight)
@@ -98,64 +83,53 @@ public class Map {
         target.drawImage(backgroundTile, x2, y2, Graphics.TOP|Graphics.LEFT);
       }
     }
-  }
-
-  // Reads from a file, converts it to a 2d boolean array and stores it as our collision map.
-  public void loadCollisionMap(String filename) throws IOException
-  {
-    DataInputStream dataInput = new DataInputStream(getClass().getResourceAsStream(filename));
-    if (dataInput.available() == 0) throw new IOException();
-
-    int collWidth = dataInput.readInt();
-    int collHeight = dataInput.readInt();
-    boolean[][] loadedMap = new boolean[collWidth][collHeight];
-
-    // Load all the collision data into that array.
-    for (int x = 0; x < collWidth; x++)
-    {
-      for (int y = 0; y < collHeight; y++)
-      {
-        loadedMap[x][y] = dataInput.readBoolean();
-      }
-    }
-
-    setCollisionMap(loadedMap);
-  }
+  } 
 
   // Give us a collision map (2d boolean array) to use. If it's less than the size of this
   // map, repeat it. This works much much quicker if the map fits the screen properly already.
-  // If you use jagged arrays, strange things may well happen! TODO - There are bugs here that need fixing!
+  // This assumes square arrays.
   public void setCollisionMap(boolean[][] map)
   {
-    // Shortcut for empty arrays that makes the next bit a little less worrisome.
-    if (map.length == 0)
+    // Unless we specify otherwise, the collision map is sized to perfectly match the actual map.
+    collisionMapVerticalScaleFactor = 1;
+    collisionMapHorizontalScaleFactor = 1;
+
+    // If we're given an empty collision map, we just make one that says there are no solid things anywhere.
+    if (map == null || map.length == 0 || map[0].length == 0) collisionMap = new boolean[getWidth()][getHeight()];
+
+    // If the map fits perfectly, we're done.
+    else if (map.length == getWidth() && map[0].length == getHeight())
     {
-      collisionMap = new boolean[width][height];
+      collisionMap = map;
     }
-    // Else, set it up and work out how we're scaling it for later.
+    // There is some map data, but it doesn't fit quite right.
     else
     {
-      collisionMapScaleFactor = width / map.length + 1;
+      collisionMapHorizontalScaleFactor = (double) getWidth() / (double) map.length;
+      collisionMapVerticalScaleFactor = (double) getHeight() / (double) map[0].length;
+
       collisionMap = map;
     }
   }
 
-  // Checks whether the given coordinate is free on our map. Coords in for the center of a circle of radius radius.
-  public boolean isPositionFree(int x, int y, int radius)
+  // Checks whether the given coordinate is free on our map. Coords in for the center of a circle of diameter diameter.
+  public boolean isPositionFree(double x, double y, int diameter)
   {
-    // Places that are not on the map are not free.
-    if (x - radius <= 0 || x + radius >= width || y - radius <= 0 || y + radius >= height) return false;
+    // Places that are not on the map are never free.
+    if (x - diameter/2 <= 0 || x + diameter/2 >= width || y - diameter/2 <= 0 || y + diameter/2 >= height) return false;
 
-    // This makes things much quicker, particulary on largely scaled maps / small objects.
-    if (radius / collisionMapScaleFactor < 1) return !collisionMap[x / collisionMapScaleFactor][y / collisionMapScaleFactor];
+    // Rescale our parameters so that they match the collision map.
+    x = x / collisionMapHorizontalScaleFactor;
+    y = y / collisionMapVerticalScaleFactor;
 
-    // TODO - Collision detection seriously needs tightening up, eventually.
+    double xRadius = diameter / collisionMapHorizontalScaleFactor / 2;
+    double yRadius = diameter / collisionMapVerticalScaleFactor / 2;
 
     // Work out the boundaries (non-inclusive) of this object, scaled to match the collision map.
-    int minX = (x - radius) / collisionMapScaleFactor;
-    int maxX = (x + radius) / collisionMapScaleFactor;
-    int minY = (y - radius) / collisionMapScaleFactor + 1;
-    int maxY = (y + radius) / collisionMapScaleFactor + 1;
+    int minX = (int) Math.ceil(x - xRadius);
+    int maxX = (int) Math.ceil(x + xRadius);
+    int minY = (int) Math.ceil(y - yRadius);
+    int maxY = (int) Math.ceil(y + yRadius);
 
     // If anything solid is in those boundaries, we collide.
     for (int x2 = minX; x2 < maxX; x2++)
@@ -170,14 +144,14 @@ public class Map {
     return true;
   }
 
-  public int getPlayerStartX()
+  public int getPlayerStartX(byte playerId)
   {
-    return 20;
+    return playerSpawns[playerId].x;
   }
 
-  public int getPlayerStartY()
+  public int getPlayerStartY(byte playerId)
   {
-    return 20;
+    return playerSpawns[playerId].y;
   }
 
 }

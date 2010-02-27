@@ -73,6 +73,7 @@ public class Connection {
 
   // Registers the datatypes that a certain object might want to sync.
   // Byte type identifiers should match one of the static final type ids in Connection
+  // Clients can provide null for factory, iff they wish to be impossible to instantiate.
   // Returns an id for all instances of that object to use when they sync.
   public static int register(byte[] argumentTypes, SyncableFactory factory)
   {
@@ -91,7 +92,11 @@ public class Connection {
   // Returns an array of bytes, each matching to a datatype, as defined in Connection
   public static byte[] getTypes(int syncId)
   {
-    if (syncId == -1) return new byte[0];
+    if (syncId == -1)
+    {
+      if (DEBUG) System.out.println("Conn: WARNING - Getting types of element with syncId -1");
+      return new byte[0];
+    }
     return (byte[]) types.elementAt(syncId);
   }
 
@@ -101,9 +106,10 @@ public class Connection {
     return (SyncableFactory) factories.elementAt(syncId);
   }
 
-  public Syncable buildInstance(int syncId, Object[] data)
+  public Syncable buildInstance(int syncId, Object[] data) throws InstantiationException
   {
     if (syncId == -1) return null;
+    if (getFactory(syncId) == null) throw new InstantiationException("Tried to instantiate uninstantiable class, sync id: "+syncId);
     return getFactory(syncId).buildFromData(data);
   }
 
@@ -232,6 +238,7 @@ public class Connection {
           break;
         case VECTOR_OF_SYNCABLE_TYPE:
           Vector v = (Vector) data[ii];
+          if (DEBUG) System.out.println("Conn: Writing vector of length "+v.size());
           writeInt(v.size());
           for (int jj = 0; jj < v.size(); jj++)
           {
@@ -266,7 +273,7 @@ public class Connection {
     if (syncId != s.getSyncId()) throw new ClassCastException();
     Object[] data = read(syncId);
 
-    s.loadFromData(data);
+    s.updateWithData(data);
   }
 
   // Reads in the data for the next object from the stream, according to the type defined
@@ -311,29 +318,40 @@ public class Connection {
           {
             data[ii] = readAndBuild();
           }
-          catch (Exception e) { data[ii] = null; }
+          catch (Exception e)
+          {
+            System.out.println("Error building contained syncable: "+e.getMessage());
+            e.printStackTrace();
+            data[ii] = null;
+          }
           break;
         case VECTOR_OF_SYNCABLE_TYPE:
           Vector v = new Vector();
           int vectorSize = readInt();
+          System.out.println("Conn: Reading vector of size "+vectorSize);
           for (int jj = 0; jj < vectorSize; jj++)
           {
             try
             {
-              v.addElement(readAndBuild());
+              Object o = readAndBuild();
+              System.out.println("Read vector element "+jj+": "+o.toString());
+              v.addElement(o);
             }
             catch (Exception e) { System.out.println("Conn: Trying to read bad Vector."); }
           }
+          data[ii] = v;
+          System.out.println("Conn: Read vector");
           break;
       }
     }
 
     if (DEBUG)
     {
-      System.out.println("Conn: Object data read:");
+      System.out.println("Conn: Object data (type "+syncId+") read:");
       for (int ii = 0; ii < data.length; ii++)
       {
-        System.out.println("Conn:   "+ii+" = "+data[ii].toString());
+        System.out.print("Conn:   "+ii);
+        System.out.println(" = "+data[ii]);
       }
       System.out.println("Conn: End of object");
     }

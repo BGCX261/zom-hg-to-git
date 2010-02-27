@@ -75,12 +75,14 @@ public class World {
   // Write lock not required for this!
   public void addThing(Thing thing)
   {
+    System.out.println("adding thing "+thing.toString());
     thingsToAdd.enqueue(thing);
   }
 
   // Write lock not required.
   public void removeThing(int thingId)
   {
+    System.out.println("removing thing "+thingId);
     thingsToRemove.enqueue(new Integer(thingId));
   }
 
@@ -131,20 +133,22 @@ public class World {
   }
 
   // Before using this you MUST HAVE A WRITE LOCK
-  public void changeThingId(int oldThingId, int newThingId)
+  public void changeThingId(Thing t, int newThingId)
   {
     // Trivial case.
-    if (oldThingId == newThingId) return;
+    if (t.getThingId() == newThingId) return;
 
     // TODO - Better name!
-    Integer oldId = new Integer(oldThingId);
+    Integer oldId = new Integer(t.getThingId());
 
-    Thing t = (Thing) things.get(oldId);
-    
-    things.remove(oldId);
-
+    // If we've got this thing in the world atm, move it.
+    if (things.contains(oldId))
+    {
+      things.remove(oldId);
+      things.put(new Integer(newThingId), t);      
+    }
+    // Make sure the thing knows it's been moved.
     t.setThingId(newThingId);
-    things.put(new Integer(newThingId), t);
   }
 
   public void announceBirth(Thing t)
@@ -178,12 +182,55 @@ public class World {
     return (Thing) things.get(new Integer(thingId));
   }
 
+  public static boolean isPlayerId(int id)
+  {
+    return id < FIRST_ALLOCATABLE_THING_ID && id >= 0;
+  }
+
+  public Player getClosestPlayer(int x, int y)
+  {
+    Integer closestPlayerId = null;
+    int closestDistance = -1;
+    int distance;
+
+    for (Enumeration thingIds = things.keys(); thingIds.hasMoreElements();)
+    {
+      Integer id = (Integer) thingIds.nextElement();
+
+      // If this thing is a player.
+      if (isPlayerId(id.intValue()))
+      {
+        Player p = (Player) things.get(id);
+        distance = distanceBetween(x, y, p.getX(), p.getY());
+
+        // If this is the best (or first) player that we've found, remember them.
+        if (distance < closestDistance || closestDistance == -1)
+        {
+          closestDistance = distance;
+          closestPlayerId = id;
+        }
+      }
+    }
+
+    return closestPlayerId == null ? null : (Player) things.get(closestPlayerId);
+  }
+  
+  public static int distanceBetween(Thing t, Thing u)
+  {
+    return distanceBetween(t.getX(), t.getY(), u.getX(), u.getY());
+  }
+
+  public static int distanceBetween(int x1, int y1, int x2, int y2)
+  {
+    return (int) Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+  }
+
   // Looks at the planned position of a thing, and checks that it's free of obstacles either in terms of the map, or of other Things.
   // If it looks like there is a collision it asks the relevant parties, via their collide() methods, whether collision should occur.
   // Return value indicates whether a collision occurs (true is yes, false is no).
   public boolean doesPlanHaveCollisions(Thing t)
   {
-    if (!map.isPositionFree(t.getPlannedX(), t.getPlannedY(), t.getRadius()) && t.collide(map, this)) return true;
+    if (!map.isPositionFree(t.getPlannedX(), t.getPlannedY(), t.getRadius()*2) && t.collide(map, this)) return true;
 
     // Go through every thing, and see if they're on this spot.
     for (Enumeration thingsEnum = getThings(); thingsEnum.hasMoreElements();)

@@ -2,7 +2,6 @@ package com.zom.view.game;
 
 import com.zom.view.game.multiplayer.*;
 import com.zom.view.menu.Config;
-import com.zom.world.*;
 
 /**
  * GameConfig
@@ -18,6 +17,7 @@ public class GameConfig implements Syncable {
   private WorldBuilder worldBuilder;
   private String gameName = "Unnamed Game";
   private final Config mainConfig = Config.getInstance();
+  private byte difficulty = 1;
 
   // An id unique to the game, shared across all participants.
   private int id;
@@ -67,11 +67,6 @@ public class GameConfig implements Syncable {
     return maxPlayers;
   }
 
-  public WorldBuilder getWorldBuilder()
-  {
-    return worldBuilder;
-  }
-
   public void setGameName(String gameName)
   {
     this.gameName = gameName;
@@ -82,28 +77,32 @@ public class GameConfig implements Syncable {
     this.maxPlayers = (byte) maxPlayers;
   }
 
+  public void setDifficulty(byte difficulty)
+  {
+    if (difficulty < 0 || difficulty > 2) throw new Error("Attempted to set invalid difficulty (" + difficulty + ")");
+    this.difficulty = difficulty;
+    if (getWorldBuilder() != null) getWorldBuilder().setDifficulty(difficulty);
+  }
+
+  public byte getDifficulty()
+  {
+    return difficulty;
+  }
+
   public void setWorldBuilder(WorldBuilder worldBuilder)
   {
     this.worldBuilder = worldBuilder;
+    worldBuilder.setDifficulty(difficulty);
+  }
+
+  public WorldBuilder getWorldBuilder()
+  {
+    return worldBuilder;
   }
 
   public int getControlScheme()
   {
     return mainConfig.getControlScheme();
-  }
-
-  // GameConfigs are equal if they have the same unique id.
-  public boolean equals(Object obj)
-  {
-    if (obj.getClass() != this.getClass()) return false;
-    // If this is another gameconfig, then these are equal if the id is the same, and the name is the same.
-    else return (((GameConfig)obj).getGameId() == getGameId() && ((GameConfig)obj).getGameName().equals(getGameName()));
-  }
-
-  // Similiarly, the hashcode for a gameconfig is its id
-  public int hashCode()
-  {
-    return getGameId();
   }
 
   public void setPlayerId(byte playerId)
@@ -126,6 +125,20 @@ public class GameConfig implements Syncable {
     this.conn = conn;
   }
 
+  // GameConfigs are equal if they have the same unique id.
+  public boolean equals(Object obj)
+  {
+    if (obj.getClass() != this.getClass()) return false;
+    // If this is another gameconfig, then these are equal if the id is the same, and the name is the same.
+    else return (((GameConfig)obj).getGameId() == getGameId() && ((GameConfig)obj).getGameName().equals(getGameName()));
+  }
+
+  // Similiarly, the hashcode for a gameconfig is its id
+  public int hashCode()
+  {
+    return getGameId();
+  }
+
   public int getSyncId()
   {
     return syncId;
@@ -143,16 +156,18 @@ public class GameConfig implements Syncable {
       new Integer(getGameId()),
       getGameName(),
       getWorldBuilder(),
-      new Byte(getMaxPlayers())
+      new Byte(getMaxPlayers()),
+      new Byte(getDifficulty())
     };
   }
 
-  public void loadFromData(Object[] data)
+  public void updateWithData(Object[] data)
   {
     setGameId(((Integer)data[0]).intValue());
     setGameName((String)data[1]);
     setWorldBuilder((WorldBuilder)data[2]);
     setMaxPlayers(((Byte)data[3]).byteValue());
+    setDifficulty(((Byte)data[4]).byteValue());
   }
 
   private static class GameConfigFactory implements SyncableFactory
@@ -164,7 +179,8 @@ public class GameConfig implements Syncable {
         Connection.INT_TYPE, // Game UUID
         Connection.STRING_TYPE, // Game name
         Connection.SYNCABLE_TYPE, // WorldBuilder
-        Connection.BYTE_TYPE // Max Players
+        Connection.BYTE_TYPE, // Max Players
+        Connection.BYTE_TYPE  // Difficulty
       },
       this);
     }
@@ -172,7 +188,7 @@ public class GameConfig implements Syncable {
     public Syncable buildFromData(Object[] data)
     {
       GameConfig gc = new GameConfig();
-      gc.loadFromData(data);
+      gc.updateWithData(data);
       return gc;
     }
 

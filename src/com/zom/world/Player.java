@@ -29,17 +29,18 @@ public abstract class Player extends Thing {
 
   protected Gun gun = new Pistol();
   
-  public Player() {
-    super(7);
-    try {
+  public Player()
+  {
+    super(8);
+    
+    try
+    {
       if (playerImages == null)
       {
         loadPlayerImages();
       }
     }
     catch (IOException e) { System.out.println("Couldn't load player images"); }
-
-    setAngle(8);
   }
 
   public Player(byte playerId)
@@ -94,22 +95,22 @@ public abstract class Player extends Thing {
   {
     new Integer(getX()), // X
     new Integer(getY()), // Y
-    new Integer(getAngle()) // Angle
+    new Byte(getAngle()) // Angle
   };
 
   public Object[] getData()
   {
     if (((Integer)dataArray[0]).intValue() != getX()) dataArray[0] = new Integer(getX());
     if (((Integer)dataArray[1]).intValue() != getY()) dataArray[1] = new Integer(getY());
-    if (((Integer)dataArray[2]).intValue() != getAngle()) dataArray[2] = new Integer(getAngle());
+    if (((Byte)dataArray[2]).byteValue() != getAngle()) dataArray[2] = new Byte(getAngle());
     return dataArray;
   }
 
-  public void loadFromData(Object[] data)
+  public void updateWithData(Object[] data)
   {
     setX(((Integer)data[0]).intValue());
     setY(((Integer)data[1]).intValue());
-    setAngle(((Integer)data[2]).intValue());
+    setAngle(((Byte)data[2]).byteValue());
   }
 
   private static class PlayerFactory implements SyncableFactory
@@ -118,7 +119,7 @@ public abstract class Player extends Thing {
     {
       Connection.INT_TYPE, // X
       Connection.INT_TYPE, // Y
-      Connection.INT_TYPE // Angle
+      Connection.BYTE_TYPE // Angle
     };
 
     public void register()
@@ -129,7 +130,7 @@ public abstract class Player extends Thing {
     public Syncable buildFromData(Object[] data)
     {
       Player p = new RemotePlayer();
-      p.loadFromData(data);
+      p.updateWithData(data);
       return p;
     }
   }

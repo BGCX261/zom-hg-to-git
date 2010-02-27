@@ -1,8 +1,11 @@
-package com.zom.world;
+package com.zom.view.game;
 
+import com.zom.util.Coord;
+import com.zom.world.*;
 import com.zom.view.game.multiplayer.Connection;
 import com.zom.view.game.multiplayer.Syncable;
 import com.zom.view.game.multiplayer.SyncableFactory;
+import javax.microedition.lcdui.Image;
 
 /**
  * StaticWorldFactory
@@ -12,26 +15,23 @@ import com.zom.view.game.multiplayer.SyncableFactory;
  *
  * @author Tim Perry
  */
-public class StaticWorldBuilder implements WorldBuilder {
+public class StaticWorldBuilder extends WorldBuilder {
 
   // Register us, so that worlds can be sent via Connections.
   private static int syncId;
   private static StaticWorldBuilderFactory factory = new StaticWorldBuilderFactory();
 
-  public void setDifficulty() { }
+  protected void setDifficulty(byte difficulty) { }
 
   public World buildWorld()
   {
-    Map m = new Map("map1");
-    World w = new World(m);
-
-    // Add the local player to the world.
-    LocalPlayer.getLocalPlayer().setX(m.getPlayerStartX());
-    LocalPlayer.getLocalPlayer().setY(m.getPlayerStartY());
-
-    w.addThing(LocalPlayer.getLocalPlayer());
-    
-    return w;
+    // Builds an empty 100x100 map.
+    return constructWorldFromParameters(100, 
+                                        100,
+                                        Image.createImage(100, 100),
+                                        new boolean[100][100],
+                                        new Coord[] { new Coord(20, 20), new Coord(40, 40), new Coord(20,40), new Coord(40,20) }
+    );
   }
 
   public int getSyncId()
@@ -51,7 +51,7 @@ public class StaticWorldBuilder implements WorldBuilder {
     };
   }
 
-  public void loadFromData(Object[] data)
+  public void updateWithData(Object[] data)
   {
   }
 

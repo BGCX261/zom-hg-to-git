@@ -28,16 +28,18 @@ public class Game extends GameCanvas implements View {
   private int cameraX;
   private int cameraY;
 
-  public static final int TICK_LENGTH = 30;
+  public static final int TICK_LENGTH = 35;
 
   private boolean running;
   private Graphics g;
 
   // Build ourselves from the spec given.
-  public Game(GameConfig config)
+  public Game(GameConfig config) throws InstantiationException
   {
     // We run the constructor for GameCanvas with key events suppressed - no keyPressed etc calls will be made.
     super(true);
+    
+    running = false;
 
     // Store this config
     this.config = config;
@@ -49,6 +51,13 @@ public class Game extends GameCanvas implements View {
 
     // Let there be light (build us a world from our config - can take time)
     world = config.getWorldBuilder().buildWorld();
+    controllers = config.getWorldBuilder().buildControllers();
+
+    // Add the local player to the world.
+    LocalPlayer.getLocalPlayer().setX(world.getMap().getPlayerStartX(config.getPlayerId()));
+    LocalPlayer.getLocalPlayer().setY(world.getMap().getPlayerStartY(config.getPlayerId()));
+
+    world.addThing(LocalPlayer.getLocalPlayer());
 
     // Set up multiplayer, if required.
     if (config.getMaxPlayers() > 1)
@@ -56,9 +65,7 @@ public class Game extends GameCanvas implements View {
       multiplayerManager = new MultiplayerManager(this, config);
     }
 
-    controllers = new Vector();
     g = getGraphics();
-    running = false;
   }
 
   // Most of the time you want to use the accessor functions like getMaxPlayers, but sometimes you want more detail. This is for that.
@@ -67,6 +74,7 @@ public class Game extends GameCanvas implements View {
     return config;
   }
 
+  // As soon as the game is given a display to play with, it sets up, and then spawns another thread to actually run the game.
   public void giveDisplay(Display d)
   {
     System.out.println("Game has display");
@@ -111,39 +119,34 @@ public class Game extends GameCanvas implements View {
 
     public void run()
     {
+      //long startTime = System.currentTimeMillis();
       if (!running) cancel();
 
-      // Run every controller
+      // If we're controlling, run our controllers.
       for (int ii = 0; ii < controllers.size(); ii++)
       {
-        ((Controller)controllers.elementAt(ii)).run(getWorld());
+        // If we're not running everything (isMaster) then we run in simulation mode.
+        ((Controller) controllers.elementAt(ii)).run(getWorld(), !isMaster());
       }
-
+      
       // Look at player input, control the local player
       localPlayer.setKeys(getKeyStates());
 
       // Update the world (players + AI)
       world.tick();
 
-      // TODO - Run every controller.
-      for (int ii = 0; ii < controllers.size(); ii++)
-      {
-        Controller c = (Controller) controllers.elementAt(ii);
-        c.run(world);
-      }
-
       updateCameraCoords();
 
       // Draw everything out.
       draw();
+      //System.out.println("Tick time: "+(System.currentTimeMillis() - startTime));
     }
 
   }
 
-  // TODO - Checksum everything in the game into one long. Might be challenging...
-  public long checksum()
+  public boolean isMaster()
   {
-    return 0;
+    return config.getConnectionToServer() == null;
   }
 
   // Draw the view from the camera's coordinates to the screen.

@@ -74,7 +74,6 @@ class IndividualGameServer implements Runnable, ThingLifeListener
     try
     {
       sendGameConfig();
-      conn.writeByte(playerId);
 
       // This blocks until the client begins actively running (in GameClient->Run), and then works out the latency for us, for later.
       latency = conn.ping(3);
@@ -127,6 +126,15 @@ class IndividualGameServer implements Runnable, ThingLifeListener
   {
     GameConfig config = mainServer.game.getGameConfig();
     conn.write(config);
+
+    // If their worldbuilder is not ready, with the given information provided, send more.
+    if (conn.readBool() == false)
+    {
+      // Use the WorldBuilder class to get the full and complete information
+      conn.write(config.getWorldBuilder().getFullSyncId(), config.getWorldBuilder().getFullData());
+    }
+    
+    conn.writeByte(playerId);
   }
 
   // Syncs every runtime value - that is, the positions of everything that might've moved etc,

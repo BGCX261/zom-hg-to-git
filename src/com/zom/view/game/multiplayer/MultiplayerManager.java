@@ -1,9 +1,10 @@
 package com.zom.view.game.multiplayer;
 
+import com.zom.util.Coord;
 import com.zom.view.game.multiplayer.server.GameServer;
 import com.zom.view.game.*;
 import com.zom.world.*;
-import com.zom.world.StaticWorldBuilder;
+import com.zom.view.game.StaticWorldBuilder;
 import javax.bluetooth.UUID;
 import javax.microedition.io.Connector;
 import javax.microedition.io.StreamConnection;
@@ -32,8 +33,13 @@ public class MultiplayerManager {
   {
     GameConfig.registerForSync();
     Player.registerForSync();
+    WorldBuilder.registerForSync();
+    FileBasedWorldBuilder.registerForSync();
     StaticWorldBuilder.registerForSync();
     Bullet.registerForSync();
+    ZombieController.registerForSync();
+    Zombie.registerForSync();
+    Coord.registerForSync();
   }
   
   // Manage the given game as a client to the given server, and also start serving it to anybody else who might want it (Serving not yet included - TODO)
@@ -95,7 +101,8 @@ public class MultiplayerManager {
       Game game;
       Connection conn = null;
 
-      try {
+      try
+      {
         StreamConnection connection = ((StreamConnection) Connector.open(connectionString));
         conn = new Connection(
           new ZomDataInputStream(connection.openInputStream()),
@@ -107,6 +114,12 @@ public class MultiplayerManager {
 
         // Build a config for that game from the server.
         GameConfig gameConfig = (GameConfig) conn.readAndBuild();
+        if (!gameConfig.getWorldBuilder().ready())
+        {
+          conn.writeBool(false);
+          gameConfig.getWorldBuilder().updateWithFullData(conn.read());
+        }
+        else conn.writeBool(true);
         
         gameConfig.setPlayerId(conn.readByte());        
         gameConfig.setConnectionToServer(conn);

@@ -13,6 +13,7 @@ public abstract class Thing implements Syncable {
   // Lookup tables to avoid us having to convert between our angle system (mod 16) to radians all the time.
   private final static double[] COS_LOOKUP_TABLE = { 1, 0.92, 0.71, 0.38, 0, -0.38, -0.71, -0.92, -1, -0.92, -0.71, -0.38, 0, 0.38, 0.71, 0.92 };
   private final static double[] SIN_LOOKUP_TABLE = { 0, 0.38, 0.71, 0.92, 1, 0.92, 0.71, 0.38, 0, -0.38, -0.71, -0.92, -1, -0.92, -0.71, -0.38 };
+  private final static double[] INVERSE_TAN_LOOKUP_TABLE = { -5, -1.5, -0.67, -0.2, 0.2, 0.67, 1.5, 5 };
 
   private int x;
   protected int plannedX;
@@ -20,9 +21,10 @@ public abstract class Thing implements Syncable {
   private int y;
   protected int plannedY;
   
-  // Direction this Thing is facing. Angles are measured clockwise, and are integers mod 16, with 0 being straight up
-  private int angle;
-  protected int plannedAngle;
+  // Direction this Thing is facing. Angles are measured clockwise, and are integers mod 16, with 0 being straight up. By default, everything
+  // starts pointing downwards.
+  private byte angle = 8;
+  protected byte plannedAngle = 8;
 
   // A unique id for a thing within a world. This id is chosen by the world, when the thing is added to the world.
   private int thingId = -1;
@@ -87,13 +89,13 @@ public abstract class Thing implements Syncable {
     return plannedY;
   }
 
-  // Angles are measured clockwise, and are integers mod 16, with 0 being straight up
-  public int getAngle()
+  // Angles are measured clockwise, and are bytes mod 16, with 0 being straight up
+  public byte getAngle()
   {
     return angle;
   }
 
-  public int getPlannedAngle()
+  public byte getPlannedAngle()
   {
     return plannedAngle;
   }
@@ -118,30 +120,65 @@ public abstract class Thing implements Syncable {
   // Negative angles here are fine, and will work as would be expected.
   public void planTurn(int angle)
   {
-    this.plannedAngle = makeAngle(getAngle()+angle);
+    this.plannedAngle = makeAngle(getAngle() + angle);
   }
   
   // Converts an int into a valid angle (basically just a mod function)
-  public static int makeAngle(int angle)
+  public static byte makeAngle(int angle)
   {
     // Have to push the angle to positive, because java's mod function does not do sensible things with negative numbers.
     while (angle < 0)
     {
       angle += 16;
     }
-    return angle % 16;
+    return (byte) (angle % 16);
   }
 
-  // Cos function, defined over our angle system (integers, mod 16)
-  public static double cos(int angle)
+  // Cos function, defined over our angle system (bytes, mod 16)
+  public static double cos(byte angle)
   {
     return COS_LOOKUP_TABLE[makeAngle(angle)];
   }
 
-  // Sine function, defined over our angle system (integers, mod 16) 
-  public static double sin(int angle)
+  // Sine function, defined over our angle system (bytes, mod 16)
+  public static double sin(byte angle)
   {
     return SIN_LOOKUP_TABLE[makeAngle(angle)];
+  }
+
+  // Finds the angle (in our angle system)
+  public static byte findAngle(int adj, int opp)
+  {
+    if (adj == 0)
+    {
+      if (opp >= 0) return 8;
+      else return 0;
+    }
+
+    double tanOfAngle = (double) opp / (double) adj;
+
+    byte offset;
+    // Left semicircle
+    if (adj < 0)
+    {
+      offset = 8;
+    }
+    // Right semicircle
+    else
+    {
+      offset = 0;
+    }
+
+    if (tanOfAngle < INVERSE_TAN_LOOKUP_TABLE[0]) return offset;
+
+    for (byte ii = 0; ii < INVERSE_TAN_LOOKUP_TABLE.length-1; ii++)
+    {
+      if (tanOfAngle >= INVERSE_TAN_LOOKUP_TABLE[ii] && tanOfAngle < INVERSE_TAN_LOOKUP_TABLE[ii + 1])
+      {
+        return (byte) (ii + offset + 1);
+      }
+    }
+    return (byte) ((INVERSE_TAN_LOOKUP_TABLE.length - 1) + offset);
   }
 
   // Moves distance forward (or backwards if negative) in the direction this thing is facing.

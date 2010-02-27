@@ -34,12 +34,12 @@ public class RemotePlayer extends Player {
     }
   }
 
-  public void loadFromData(Object[] data)
+  public void updateWithData(Object[] data)
   {
     previousXUpdate = lastXUpdate;
     previousYUpdate = lastYUpdate;
     
-    super.loadFromData(data);
+    super.updateWithData(data);
 
     lastXUpdate = getX();
     lastYUpdate = getY();

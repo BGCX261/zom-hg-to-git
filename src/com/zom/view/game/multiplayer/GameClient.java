@@ -14,16 +14,6 @@ import java.io.IOException;
  */
 class GameClient implements Runnable, ThingLifeListener {
 
-  // *** Constants for magic numbers ***
-  // Number of checksums to buffer at any time.
-  private final static byte CHECKSUM_BUFFER_SIZE = 5;
-
-  // A mapping from times -> checksum values, and an index to indicate the slot to fill
-  // in with the next checksum.
-  private long[] checksumTimes = new long[CHECKSUM_BUFFER_SIZE];
-  private long[] checksumValues = new long[CHECKSUM_BUFFER_SIZE];
-  private int nextChecksumIndex = 0;
-
   private Game game;
   private Connection conn;
 
@@ -38,7 +28,6 @@ class GameClient implements Runnable, ThingLifeListener {
   public GameClient(Game g, Connection conn)
   {
     this.game = g;
-
     this.conn = conn;
   }
 
@@ -58,8 +47,6 @@ class GameClient implements Runnable, ThingLifeListener {
       conn.lock();
       while (running)
       {
-        // Work out our current checksum at the start of this tick.
-        //updateChecksum();
         sendChanges();
         sync();
         
@@ -70,35 +57,6 @@ class GameClient implements Runnable, ThingLifeListener {
       conn.unlock();
     }
     catch (Exception e) { e.printStackTrace(); }
-  }
-
-  // Calculate checksum for this tick, and save it.
-  public void updateChecksum()
-  {
-    checksumValues[nextChecksumIndex] = game.checksum();
-    checksumTimes[nextChecksumIndex] = tickCount;
-    nextChecksumIndex = (nextChecksumIndex + 1) % CHECKSUM_BUFFER_SIZE;
-  }
-
-  // Reads two longs from the server - one tickstamp and one checksum.
-  // If they're consistent with our data, we return true, otherwise false.
-  public boolean checkSync() throws IOException
-  {
-    /* TODO - Implement checksums so we can uncomment this.
-    long serverChecksumTime = conn.readLong();
-    long serverChecksum = conn.readLong();
-    
-    // See if we have a checksum for this tick. If we do, see if it's the same.
-    // If it is, we're good. If it's not, or we don't have a checksum, we're not good.
-    for (int ii = 0; ii < checksumTimes.length; ii++){
-      if (checksumTimes[ii] == serverChecksumTime)
-      {
-        if (checksumValues[ii] == serverChecksum) return true;
-        else return false;
-      }
-    }
-     */
-    return false;
   }
 
   public void sync() throws IOException
@@ -135,13 +93,15 @@ class GameClient implements Runnable, ThingLifeListener {
 
       int deathCount = conn.readInt();
 
-      // We avoid listening to deaths; it'd be pointless because since we have the write lock nobody else can cause any
-      // deaths, so we'd just be hearing about the deaths we're causing, which we don't want to do.
-      game.getWorld().removeThingLifeListener(this);
       for (int ii = 0; ii < deathCount; ii++)
       {
         game.getWorld().removeThing(conn.readInt());
       }
+
+      // We avoid listening to deaths; it'd be pointless because since we have the write lock nobody else can cause any
+      // deaths, so we'd just be hearing about the deaths we're causing, which we don't want to do.
+      game.getWorld().removeThingLifeListener(this);
+      game.getWorld().forceUpdate();
       game.getWorld().addThingLifeListener(this);
       
       game.getWorld().unlock();
@@ -176,8 +136,11 @@ class GameClient implements Runnable, ThingLifeListener {
         // or they'll tell us no (-1) and we'll delete our thing.
         int newThingId = conn.readInt();
 
+        // The server can tell us no by returning -1.
         if (newThingId == -1) game.getWorld().removeThing(t.getThingId());
-        else game.getWorld().changeThingId(t.getThingId(), newThingId);
+
+        // Alternatively, the server can change the id.
+        else game.getWorld().changeThingId(t, newThingId);
       }
     }
 
@@ -185,10 +148,13 @@ class GameClient implements Runnable, ThingLifeListener {
     {
       // Tell the server about everything we have that has died.
       conn.writeInt(deadThings.size());
+
       while (!deadThings.empty())
       {
+        Thing t = (Thing) deadThings.dequeue();
+
         // TODO - What happens if we added something to the world and then removed it, and then the server said no?
-        conn.writeInt(((Thing) deadThings.dequeue()).getThingId());
+        conn.writeInt(t.getThingId());
       }
     }
     game.getWorld().unlock();

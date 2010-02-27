@@ -1,9 +1,9 @@
 package com.zom.view.menu;
 
 import com.zom.main.MIDlet;
+import java.io.IOException;
 import javax.microedition.lcdui.*;
 import com.zom.view.game.*;
-import com.zom.world.StaticWorldBuilder;
 /**
  * NewGameMenu
  *
@@ -15,9 +15,26 @@ public class NewGameMenu extends Menu implements CommandListener {
   public final static int OPTIONS = 1;
   public final static int BACK = 2;
 
+  private static final String DEFAULT_MAP = "map1";
+
+  private Display display;
+
+  private GameConfig gameConfig;
+
   public NewGameMenu(MIDlet midlet)
   {
     super(midlet, "Create New Game", "Select");
+
+    gameConfig = new GameConfig();
+    gameConfig.setMaxPlayers(4);
+
+    gameConfig.setWorldBuilder(new FileBasedWorldBuilder(DEFAULT_MAP));
+    gameConfig.setDifficulty((byte) 1);
+    
+    if (!gameConfig.getWorldBuilder().ready())
+    {
+      System.out.println("Couldn't build default worldbuilder (Using DEFAULT_MAP: "+DEFAULT_MAP+")");
+    }
 
     // Fill our menu with crunchy wonderful options
     append("Start Game", null);
@@ -33,15 +50,20 @@ public class NewGameMenu extends Menu implements CommandListener {
       switch (l.getSelectedIndex()) {
         case START:
           // Build a game and give it our settings.
-          GameConfig config = new GameConfig();
-          config.setWorldBuilder(new StaticWorldBuilder());
-          config.setMaxPlayers(4);
-          Game g = new Game(config);
-          midlet.showGame(g);
-          // Put it on the screen.
+          try
+          {
+            Game g = new Game(gameConfig);
+            midlet.showGame(g);
+          }
+          catch (InstantiationException e)
+          {
+            display.setCurrent(new Alert("Couldn't start game.",
+                                        "Sorry, but we failed to start this game with the given settings. The error was: "+e.getMessage(),
+                                         null, AlertType.ERROR), this);
+          }
           break;
         case OPTIONS:
-          // TODO - GAME OPTIONS
+          midlet.pushMenu(new NewGameOptionsMenu(midlet, gameConfig));
           break;
         case BACK:
           // Go back to the main menu
@@ -53,11 +75,12 @@ public class NewGameMenu extends Menu implements CommandListener {
       }
     }
     else super.commandAction(c, d);
-}
+  }
 
-  public void giveDisplay(Display d)
+  public void giveDisplay(Display display)
   {
-    d.setCurrent(this);
+    this.display = display;
+    display.setCurrent(this);
   }
 
 }
